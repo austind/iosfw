@@ -49,7 +49,7 @@ Username [austindcc]:
 Password:
 Enable secret:
 Opening connection to ios-sw-1...
-Connected to OHSMDF1b (WS-C3560X-48P) as austindcc via ssh
+Connected to ios-sw-1 (WS-C3560X-48P) as austindcc via ssh
 Firmware status: NEEDS UPGRADE to c3560e-ipbasek9-mz.150-2.SE11.bin
 >>> device.upgrade()
 ===============================================
