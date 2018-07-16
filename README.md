@@ -20,7 +20,7 @@ Features:
 
 ## Usage
 
-1. Review `config/config.yaml` and `config/images.yaml` and match them to your requirements. Defaults are sane enough for most environments, but don't take any chances :)
+1. Review [`config/config.yaml`](https://github.com/austind/iosfw/blob/master/config/config.yaml) and [`config/images.yaml`](https://github.com/austind/iosfw/blob/master/config/images.yaml) and match them to your requirements. Defaults are sane enough for most environments, but don't take any chances :)
 1. Copy your IOS images defined in `images.yaml` to the `src_image_path` defined in `config.yaml`.
 
 **Note:** Pay special attention if you have devices of the *same* model, but need *different* IOS images (e.g., ipbase vs ipservices). In that case, define both images in `images.yaml` and add the same model to their respective `models` lists. Then, change `match_feature_set` to `true` in `config.yaml`.
