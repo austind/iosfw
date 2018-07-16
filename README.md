@@ -2,7 +2,7 @@
 
 ## Overview
 
-Built upon NAPALM and Netmiko to take most of the headache out of IOS upgrades.
+Built upon NAPALM and Netmiko to take most of the headache out of IOS upgrades. Designed to be as idempotent and atomic as possible. In other words, it will only make changes if needed, and it will pick up where it left off if interrupted.
 
 Automates this process:
 1. Check and (if necessary) fix/enable SCP
