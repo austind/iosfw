@@ -730,31 +730,31 @@ class iosfw(object):
             self.log.info(self.device.send_command(cmd, delay_factor=100))
 
 
-    def request_upgrade(self):
+    def request_install(self):
         """ Requests automated upgrade """
         cmd = self.upgrade_cmd
-        self.log.info('Sending upgrade request...')
+        self.log.info('Installing new firmware...')
         self.log.debug(cmd)
-        msg = 'NOTE: No status updates possible during upgrade, ' \
+        msg = 'NOTE: No status updates possible during install, ' \
               'which may take 10 minutes or longer.'
         self.log.info(msg)
         # TODO: Log timestamps
         output = self.device.send_command(cmd, delay_factor=100)
         self.log.debug(output)
         if 'Error' in output:
-            self.log.info('Upgrade failed. See debug log for details.')
+            self.log.info('Install failed. See debug log for details.')
         else:
-            self.log.info('Upgrade complete!')
+            self.log.info('Install complete!')
 
 
-    def ensure_upgrade(self):
+    def ensure_install(self):
         """ Checks if upgrade is necessary, requesting if so """
         src_file = self._get_src_path(local=True)
         self._init_transfer(src_file)
         if not self.upgrade_installed:
             self.log.info('Upgrade package not installed.')
             self.ensure_free_space()
-            self.request_upgrade()
+            self.request_install()
         else:
             self.log.info('Upgrade package installed!')
 
@@ -823,7 +823,7 @@ class iosfw(object):
                 self.ensure_image_state()
                 self.ensure_boot_image()
             else:
-                self.ensure_upgrade()
+                self.ensure_install()
             self.refresh_upgrade_status()
             self.ensure_reload_if_needed()
             self.log.info("Upgrade on {} complete!".format(self.hostname))
