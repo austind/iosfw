@@ -644,7 +644,7 @@ class iosfw(object):
  
     def ensure_reload_if_needed(self):
         """ Schedules reload if needed """
-        if self.check_needs_reload():
+        if self.needs_reload:
             self.ensure_reload()
         else:
             self.log.info('No reload needed.')
@@ -745,7 +745,6 @@ class iosfw(object):
             self.log.info('Upgrade failed. See debug log for details.')
         else:
             self.log.info('Upgrade complete!')
-            
 
 
     def ensure_upgrade(self):
