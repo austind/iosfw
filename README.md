@@ -31,7 +31,7 @@ Other features:
 
 Basic example:
 
-```py
+```
 $ python2.7
 Python 2.7.12 (default, Nov 12 2018, 14:36:49)
 [GCC 5.4.0 20160609] on linux2
