@@ -4,21 +4,20 @@ c3550-ipbasek9-mz.122-44.SE6.bin:
         - WS-C3550-48-SMI
         - WS-C3550-48
 
-c3560-ipbasek9-mz.122-55.SE12.bin:
-    md5: f4d0ba0e070ef8eab7ac1af77e9807ce
+c3560-ipbasek9-tar.122-55.SE12.tar:
+    md5: 549c9b96cb5a914f3f8a0a601f9a12c1
     models:
-        - WS-C3560-24TS
+        - WS-C3560-24PS
         - WS-C3560-24TS
         - WS-C3560-48PS
         - WS-C3560-48TS
+        - WS-C3560G-24PS
         - WS-C3560G-24TS
         - WS-C3560G-48PS
         - WS-C3560G-48TS
-        - WS-C3560G-48PS
-        - WS-C3560G-48TS
         
-c3560e-ipbasek9-mz.150-2.SE11.bin:
-    md5: a5caa368416f51aa8d4e3228cfe83575
+c3560e-universalk9-tar.152-4.E8.tar:
+    md5: 8b50d2f228fdfbcdccae147bd720be52
     models:
         - WS-C3560X-24P
         - WS-C3560X-24T
@@ -27,14 +26,24 @@ c3560e-ipbasek9-mz.150-2.SE11.bin:
         - WS-C3560X-48
         - WS-C3560X-24
         
-c3750-ipbasek9-mz.122-55.SE12.bin:
-    md5: 98d954b0802cbc8c3c810c2ad3b61297
+c3750-ipbaselmk9-tar.122-55.SE12.tar:
+    md5: 36e116cbbcab222d28d60f65f08b126e
     models:
         - WS-C3750G-12S
         - WS-C3750G-24PS
 
-c3750e-ipbasek9-mz.150-2.SE11.bin:
-    md5: 0f70c041630c38d2a8cf817a6a6c587a
+c3750e-universalk9-tar.152-4.E8.tar:
+    md5: 4af8dc925ef1d2ba68705f9efdeae1ea
     models:
         - WS-C3750X-12S
 
+cat3k_caa-universalk9.16.03.08.SPA.bin:
+    md5: c98d0b937945f30b3cd8f58702461b6f
+    models:
+        - WS-C3650-48FQ
+        - WS-C3650-48PD  
+        - WS-C3650-48PD
+        - WS-C3850-12S 
+        - WS-C3850-24P 
+        - WS-C3850-24XS
+        - WS-C3850-48P

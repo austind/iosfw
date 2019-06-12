@@ -20,6 +20,6 @@ upgrade_args = {
 
 for host in hosts:
     upgrade_args['hostname'] = host
-    device = iosfw.upgrade(**upgrade_args)
+    device = iosfw.iosfw(**upgrade_args)
     device.upgrade()
     device.close()

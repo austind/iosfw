@@ -2,20 +2,22 @@
 
 ## Overview
 
-Built upon NAPALM and Netmiko to take most of the headache out of IOS upgrades. Designed to be as idempotent and atomic as possible. In other words, it will only make changes if needed, and it will pick up where it left off if interrupted.
+Automates the entire IOS firmware upgrade process:
+* Transfer the new image
+* Verify image integrity
+* Extract or install
+* Set boot parameters
+* Schedule reload
 
-Automates this process:
-1. Check and (if necessary) fix/enable SCP
-1. Check for adequate free space on device's `flash`
-   1. (Optional) Deletes old image to clear space if needed
-1. Copies new image via SCP with progress
-1. Verifies copied image MD5 hash
-1. Sets `boot system` pointing to the new image
-1. Schedules reload for a configurable time
+Supports several upgrade methods, depending on running IOS version:
+* `archive download-sw`
+* `software install`
+* `request platform software package install`
+* Or if those fail, plain `copy` 
 
-Features:
+Other features:
 * YAML-based config
-* Logs progress to console and/or file with configurable verbosity
+* Logs progress to console and/or file, with configurable verbosity
 * Works with ad-hoc upgrades (interactive) or batch jobs (non-interactive)
 
 ## Usage
@@ -30,50 +32,35 @@ Features:
 Basic example:
 
 ```py
-import iosfw
-device = iosfw.upgrade('ios-sw-1')
-device.upgrade()
-device.close()
-```
-
-Sample output:
-
-```
-[austindcc@jumphost iosfw]$ python2.7
-Python 2.7.13 (default, Mar 14 2017, 15:43:22)
-[GCC 4.4.7 20120313 (Red Hat 4.4.7-17)] on linux2
+$ python2.7
+Python 2.7.12 (default, Nov 12 2018, 14:36:49)
+[GCC 5.4.0 20160609] on linux2
 Type "help", "copyright", "credits" or "license" for more information.
->>> import iosfw
->>> device = iosfw.upgrade('ios-sw-1')
+>>> from iosfw import iosfw
+>>> device = iosfw('ios-sw-1')
 Username [austindcc]:
 Password:
 Enable secret:
 Opening connection to ios-sw-1...
 Connected to ios-sw-1 (WS-C3560X-48P) as austindcc via ssh
-Firmware status: NEEDS UPGRADE to c3560e-ipbasek9-mz.150-2.SE11.bin
+Upgrade status: NEEDS UPGRADE
+Upgrade version: 15.2(4)E8
+Running version: 15.0(2)SE11
 >>> device.upgrade()
 ===============================================
 Starting upgrade on ios-sw-1...
-Checking SCP...
-SCP not running. Enabling now...
-SCP enabled successfully!
-Checking device for upgrade image flash:/c3560e-ipbasek9-mz.150-2.SE11.bin...
-Not found. Checking free space...
-Found enough free space!
-Starting transfer. Expect this to take several minutes...
-c3560e-ipbasek9-mz.150-2.SE11.bin100%|##############################| 20.3M/20.3M [07:07<00:00, 47.5Kb/s]
-Transfer complete! Verifying hash...
-Hash verified!
-Checking boot image...
-Setting boot image to flash:/c3560e-ipbasek9-mz.150-2.SE11.bin...
-Success! New boot image set to flash:/c3560e-ipbasek9-mz.150-2.SE11.bin.
-Checking reload status ...
+Upgrade package not installed.
+Checking free space...
+Not enough space.
+Removing old image...
+Old image deleted.
+Sending upgrade request...
+NOTE: No status updates possible during upgrade, which may take 10 minutes or longer.
+Checking reload status...
 No reload scheduled. Scheduling...
-Reload scheduled for 00:00:00 PDT Tue Jul 17 2018 (10 hours and 2 minutes away)
+Reload scheduled for 00:00:00 PDT Thu Jun 13 2019 (9 hours and 17 minutes away)                                                                                             "/mnt/c/Users/adecoup/" 14:42 12-Jun-19
 Upgrade on ios-sw-1 complete!
 ===============================================
->>> device.close()
->>>
 ```
 
 ### Automated
@@ -84,6 +71,6 @@ See [`example/batch_example.py`](https://github.com/austind/iosfw/blob/master/ex
 
 * Tested on various versions of IOS 12.x upgrading to 12.x and 15.x, but YMMV.
 * Expect devices to take between 10 and 30 minutes to come back after reload, especially if upgrading from 12.x to 15.x, due to microcode updates.
-* The `iosfw.upgrade` class exposes all of NAPALM's config parameters, and stores the NAPALM session under `self.napalm`, so you can use all of NAPALM's features easily.
+* The `iosfw` class exposes all of NAPALM's config parameters, and stores the NAPALM session under `self.napalm`, so you can use all of NAPALM's features easily.
 * Same goes for netmiko - stored as `self.device` - so you can send arbitrary commands with `iosfw.device.send_command('my arbitrary command')`
-* Tested on Python 2.7 but probably fine on 3.x
+* Tested on Python 2.7. Porting to 3.x in the works.

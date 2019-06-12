@@ -1,5 +1,8 @@
 
 # Local path to firmware images (no trailing slash).
+# Even if you serve images from a remote machine, include 
+# copies in a local directory. This enables iosfw to perform
+# file size and hash integrity checks.
 src_image_path: '../ios'
 
 # Filesystem on device to store upgrade image.
@@ -9,6 +12,27 @@ dest_filesystem: 'flash:'
 # otherwise)
 dest_image_path: '/'
 
+# File transfer protocol
+# Tested with ftp, tftp and scp.
+transfer_proto: 'ftp'
+
+# File transfer source machine
+# Set 'localhost' to serve on local machine
+# Currently supports only SCP from localhost.
+transfer_source: ''
+
+# File transfer username (FTP)
+transfer_username: ''
+
+# File transfer password (FTP)
+transfer_password: ''
+
+# Path that transfer_source serves images from.
+# Include trailing slash. '/' means root filesystem.
+transfer_path: '/'
+
+# SSH config file to use in connections
+ssh_config_file: '~/.ssh/config'
 
 # Output / Logging
 #
@@ -17,10 +41,10 @@ dest_image_path: '/'
 # tee: write progress info both to console (stdout) and log_file
 # file: write progress info only to log_file
 # console: write progress info only to console (stdout)
-log_method: tee
+log_method: 'tee'
 #
 # File path for logging
-log_file: iosfw.log
+log_file: 'iosfw.log'
 # 
 # Output verbosity level
 # Acceptable values, from most verbose to least verbose:
@@ -98,7 +122,7 @@ reload_at: '00:00'
 #   - If dest_file_system does NOT have enough space for old and new
 #     images to coexist, old image will be deleted before copying new
 #     image.
-delete_old_image: 'never'
+delete_old_image: 'as_needed'
 
 # If SCP is not enabled, run these config commands (in this order) to
 # hopefully fix it.
