@@ -633,10 +633,9 @@ class iosfw(object):
 
     def ensure_reload(self):
         """ Schedules a reload, if not already scheduled. """
-        self.log.info("Checking reload status...")
         scheduled = self.check_reload_scheduled()
         if not scheduled:
-            self.log.info("No reload scheduled. Scheduling...")
+            self.log.info("Scheduling reload...")
             scheduled = self.schedule_reload()
         self.log.info("Reload scheduled for {} ({} away)".format(\
                       scheduled['absolute_time'],
@@ -740,7 +739,13 @@ class iosfw(object):
               'which may take 10 minutes or longer.'
         self.log.info(msg)
         # TODO: Log timestamps
-        self.log.debug(self.device.send_command(cmd, delay_factor=100))
+        output = self.device.send_command(cmd, delay_factor=100)
+        self.log.debug(output)
+        if 'Error' in output:
+            self.log.info('Upgrade failed. See debug log for details.')
+        else:
+            self.log.info('Upgrade complete!')
+            
 
 
     def ensure_upgrade(self):
