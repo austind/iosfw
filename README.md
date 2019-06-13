@@ -20,6 +20,8 @@ Other features:
 * Logs progress to console and/or file, with configurable verbosity
 * Works with ad-hoc upgrades (interactive) or batch jobs (non-interactive)
 
+**NOTE:** This is beta software in active development. It works well in my environment, but serious bugs are possible. Use at your own risk.
+
 ## Usage
 
 1. Review [`config/config.yaml`](https://github.com/austind/iosfw/blob/master/config/config.yaml) and [`config/images.yaml`](https://github.com/austind/iosfw/blob/master/config/images.yaml) and match them to your requirements. Defaults are sane enough for most environments, but don't take any chances :)
