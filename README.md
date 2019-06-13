@@ -31,7 +31,7 @@ Other features:
 
 ### Interactive
 
-```py
+```
 >>> from iosfw import iosfw
 >>> device = iosfw('ios-sw-1')
 Username [austindcc]:
