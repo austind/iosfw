@@ -92,6 +92,7 @@ class iosfw(object):
         self.upgrade_image_exists = False
         self.upgrade_image_valid = False
         self.upgrade_space_available = False
+        self.upgrade_success = False
         self.running_image_path = self.get_running_image()
         self.running_image_name = self._get_basename(self.running_image_path)
         self.running_image_feature_set = \
@@ -347,10 +348,12 @@ class iosfw(object):
         """
         return re.split(r'[:/]', file_path)[-1]
 
-    def _get_path(self, file_path):
+    def _get_path(self, file_path, include_trailing_slash=False):
         """ Returns a file's path, not including the file itself """
         basename = self._get_basename(file_path)
-        return file_path.replace(basename, '', file_path)
+        if not include_trailing_slash:
+            basename = '/{}'.format(basename)
+        return file_path.replace(basename, '')
 
     def get_upgrade_version(self, raw=False):
         """ Parses image name to return IOS version string """
@@ -632,7 +635,7 @@ class iosfw(object):
     def _delete_file(self, file_name):
         """ Deletes a remote file from device """
         cmd = 'del /recursive /force {}'.format(file_name)
-        return self.device.send_command_timing(cmd)
+        self.device.send_command_timing(cmd)
 
     def ensure_file_deleted(self, file_name, delete_path=True):
         """ Deletes a remote file from device only if it exists.
@@ -720,12 +723,18 @@ class iosfw(object):
         self.log.info(msg)
         # TODO: Log timestamps
         output = self.device.send_command(cmd, delay_factor=100)
+        self.log.debug(output)
         if 'Error' in output:
-            self.log.info('Install failed. Full output below:')
-            self.log.info(output)
+            # TODO: Install may fail even after deleting running image,
+            # since old images may still be present. Need to implement
+            # a way to find and remove old images.
+            self.log.critical('Install failed:')
+            for line in output.split("\n"):
+                if 'Error' in line:
+                    self.log.critical(line)
         else:
-            self.log.debug(output)
-            self.log.info('Install complete!')
+            self.upgrade_success = True
+            self.log.info('Install successful!')
 
     def ensure_install(self):
         """ Checks if upgrade is necessary, requesting if so """
@@ -802,9 +811,12 @@ class iosfw(object):
                 self.ensure_boot_image()
             else:
                 self.ensure_install()
-            self.refresh_upgrade_status()
-            self.ensure_reload_if_needed()
-            self.log.info("Upgrade on {} complete!".format(self.hostname))
+            if self.upgrade_success:
+                self.refresh_upgrade_status()
+                self.ensure_reload_if_needed()
+                self.log.info("Upgrade on {} complete!".format(self.hostname))
+            else:
+                self.log.info("Upgrade on {} failed.".format(self.hostname))
         else:
             self.log.info("Already running current firmware! Nothing to do.")
 
