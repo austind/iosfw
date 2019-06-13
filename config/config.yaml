@@ -19,10 +19,10 @@ transfer_proto: 'ftp'
 # File transfer source machine
 # Set 'localhost' to serve on local machine
 # Currently supports only SCP from localhost.
-transfer_source: '10.100.3.37'
+transfer_source: ''
 
 # File transfer username (FTP)
-transfer_username: 'adecoup'
+transfer_username: ''
 
 # File transfer password (FTP)
 transfer_password: ''
