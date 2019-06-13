@@ -864,13 +864,13 @@ class iosfw(object):
                 self.refresh_upgrade_status()
                 self.ensure_reload()
                 end_t = datetime.now()
-                end = end_t.strftime('%x %X')
+                end = end_t.strftime('%X %x')
                 msg = "Upgrade on {} completed at {}".format(self.hostname,
                                                              end)
                 self.log.info(msg)
             else:
                 end_t = datetime.now()
-                end = end_t.strftime('%x %X')
+                end = end_t.strftime('%X %x')
                 msg = "Upgrade on {} failed at {}".format(self.hostname,
                                                           end)
                 self.log.info(msg)
