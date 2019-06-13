@@ -686,11 +686,16 @@ class iosfw(object):
             if self.old_images:
                 for image in self.old_images:
                     self.ensure_file_deleted(image)
-        if 'proceed' in output:
+        elif 'proceed' in output:
             self.log.debug('Proceeding with package clean...')
             output += self.device.send_command_timing("y")
-        if 'SUCCESS' in output:
-            self.log.info('Deleted old images successfully.')
+        elif 'Nothing to delete' in output:
+            self.log.info('Found no old images to remove.')
+        elif 'Files deleted' in output:
+            self.log.info('Deleted old images.')
+        else:
+            msg = "Unexpected output from remove_old_image()"
+            raise ValueError(msg)
         self.log.debug(output)
 
     def _init_transfer(self, src_file=None, dest_file=None):
