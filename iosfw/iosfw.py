@@ -113,6 +113,7 @@ class iosfw(object):
         self.transfer_proto = self.config['transfer_proto']
         self.needs_reload = self.check_needs_reload()
         self.reload_scheduled = self.check_reload_scheduled()
+        self.old_images = self.get_old_images()
         if self.config['delete_running_image'] != 'never':
             self.can_delete_running_image = True
         else:
@@ -153,6 +154,7 @@ class iosfw(object):
         self.firmware_installed = self.check_firmware_installed()
         self.needs_reload = self.check_needs_reload()
         self.reload_scheduled = self.check_reload_scheduled()
+        self.old_images = self.get_old_images()
         if log:
             self.log_upgrade_status()
 
@@ -422,7 +424,8 @@ class iosfw(object):
             pattern = r'\w+-\w+-\w+.\d+-\d+\.\w+'
             match = re.search(pattern, file_name)
             if match:
-                if match.group(0) not in self.running_image_path:
+                if match.group(0) not in self.running_image_path and \
+                   match.group(0) not in self.upgrade_image_dest_path:
                     results.append(match.group(0))
         return results
 
@@ -515,13 +518,16 @@ class iosfw(object):
     def check_firmware_installed(self):
         """ Checks if upgrade package is already installed """
         version = self.get_upgrade_version(raw=True)
+        dest_fs = self.config['dest_filesystem']
+        files = self.device.send_command('dir {}'.format(dest_fs))
         if 'packages.conf' in self.boot_image_path:
             conf = self.device.send_command('more flash:packages.conf')
             if version in conf:
                 return True
             else:
                 return False
-        elif version in self.boot_image_path:
+        elif version in self.boot_image_path and \
+             version in files:
             return True
         else:
             return False
@@ -671,14 +677,13 @@ class iosfw(object):
         self.ensure_file_deleted(self.running_image_path)
         self.log.info("Running image deleted.")
 
-    def delete_old_images(self):
+    def remove_old_images(self):
         """ Deletes images on dest_filesystem that are not running """
         cmd = 'request platform software package clean switch all'
         output = self.device.send_command(cmd, expect_string=r'(proceed|\#)')
         if 'Invalid input' in output:
-            old_images = self.get_old_images()
-            if old_images:
-                for image in old_images:
+            if self.old_images:
+                for image in self.old_images:
                     self.ensure_file_deleted(image)
         if 'proceed' in output:
             self.log.debug('Proceeding with package clean...')
@@ -784,7 +789,7 @@ class iosfw(object):
             self.log.info("Not enough space.")
             if self.can_delete_old_images:
                 self.log.info("Removing old images...")
-                self.delete_old_images()
+                self.remove_old_images()
             if not self.ft.verify_space_available():
                 if self.can_delete_running_image:
                     self.log.info("Removing running image...")
@@ -833,14 +838,15 @@ class iosfw(object):
 
     def ensure_old_image_removal(self):
         """ Deletes old images if requested """
-        if self.config['delete_old_images'] == 'always':
-            self.log.info('Removing old images...')
-            self.delete_old_images()
-            
+        if self.old_images:
+            if self.config['delete_old_images'] == 'always':
+                self.log.info('Removing old images...')
+                self.remove_old_images()
+
     def ensure_running_image_removal(self):
-        """ Deletes running image if requested """
+        """ Removes running image if requested """
         if self.config['delete_running_image'] == 'always':
-            self.log.info('Removing old running image...')
+            self.log.info('Removing running image...')
             self.delete_running_image()
 
     def upgrade(self):
