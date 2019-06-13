@@ -861,17 +861,15 @@ class iosfw(object):
                 self.ensure_running_image_removal()
                 self.refresh_upgrade_status()
                 self.ensure_reload()
-                end_t = datetime.now()
-                end = end_t.strftime('%X %x')
-                msg = "Upgrade on {} completed at {}".format(self.hostname,
-                                                             end)
-                self.log.info(msg)
+                status = 'completed'
             else:
-                end_t = datetime.now()
-                end = end_t.strftime('%X %x')
-                msg = "Upgrade on {} failed at {}".format(self.hostname,
-                                                          end)
-                self.log.info(msg)
+                status = 'failed'
+            end_t = datetime.now()
+            end = end_t.strftime('%X %x')
+            msg = "Upgrade on {} {} at {}".format(self.hostname,
+                                                  status,
+                                                  end)
+            self.log.info(msg)
         elif self.needs_reload and not self.reload_scheduled:
             self.ensure_reload()
         else:
