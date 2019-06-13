@@ -130,6 +130,8 @@ class iosfw(object):
         """ Logs upgrade-related facts about device """
         if refresh:
             self.refresh_upgrade_status()
+        self.log.info("Upgrade version: {}".format(self.upgrade_version))
+        self.log.info("Running version: {}".format(self.running_version))
         if self.upgrade_installed:
             if self.needs_reload:
                 self.log.info("Upgrade status: FIRMWARE INSTALLED")
@@ -147,8 +149,6 @@ class iosfw(object):
                 self.log.info(msg)
         else:
             self.log.info("Upgrade status: NEEDS UPGRADE")
-            self.log.info("Upgrade version: {}".format(self.upgrade_version))
-            self.log.info("Running version: {}".format(self.running_version))
 
     def refresh_upgrade_status(self, log=False):
         """ Updates device status """
