@@ -1,6 +1,5 @@
 #!/usr/bin/env python2.7
 
-from contextlib import redirect_stdout
 import getpass
 import hashlib
 import io
@@ -282,9 +281,7 @@ class iosfw(object):
     def _write_config(self):
         """ Writes running configuration to NVRAM """
         cmd = 'write memory'
-        stdout = io.StringIO()
-        with redirect_stdout(stdout):
-            self.device.send_command_expect(cmd)
+        output = self.device.send_command_expect(cmd)
 
     def _send_write_config_set(self, config_set):
         """ Sends configuration set to device and writes to NVRAM """
@@ -710,10 +707,11 @@ class iosfw(object):
         self.log.info(msg)
         # TODO: Log timestamps
         output = self.device.send_command(cmd, delay_factor=100)
-        self.log.debug(output)
         if 'Error' in output:
-            self.log.info('Install failed. See debug log for details.')
+            self.log.info('Install failed. Full output below:')
+            self.log.info(output)
         else:
+            self.log.debug(output)
             self.log.info('Install complete!')
 
     def ensure_install(self):
@@ -737,6 +735,7 @@ class iosfw(object):
             self.log.info("Not enough space.")
             if self.can_delete_old_image:
                 self.log.info("Removing old image...")
+                # TODO: Delete old image folder, not just .bin
                 self._delete_file(self.running_image_path)
                 self.log.info("Old image deleted.")
             else:
