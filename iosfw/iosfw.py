@@ -774,6 +774,7 @@ class iosfw(object):
             self.request_install()
         else:
             self.log.info('New firmware already installed!')
+            self.upgrade_success = True
 
     def ensure_free_space(self):
         """ Checks for available free space, clearing if possible """
