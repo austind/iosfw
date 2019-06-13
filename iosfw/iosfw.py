@@ -186,6 +186,8 @@ class iosfw(object):
                 flags += '/safe /leave-old-sw '
             else:
                 flags += '/overwrite '
+            if not self.config['match_feature_set']:
+                flags += '/allow-feature-upgrade '
             return 'archive download-sw{}{}'.format(flags, image_src)
         if method == 'copy':
             return 'copy {} {}'.format(image_src, image_dest)
@@ -719,11 +721,11 @@ class iosfw(object):
         src_file = self._get_src_path(local=True)
         self._init_transfer(src_file)
         if not self.upgrade_installed:
-            self.log.info('Upgrade package not installed.')
+            self.log.info('New firmware not installed.')
             self.ensure_free_space()
             self.request_install()
         else:
-            self.log.info('Upgrade package installed!')
+            self.log.info('New firmware already installed!')
 
     def ensure_free_space(self):
         """ Checks for available free space, clearing if possible """
