@@ -839,10 +839,9 @@ class iosfw(object):
 
     def ensure_old_image_removal(self):
         """ Deletes old images if requested """
-        if self.old_images:
-            if self.config['delete_old_images'] == 'always':
-                self.log.info('Removing old images...')
-                self.remove_old_images()
+        if self.config['delete_old_images'] == 'always':
+            self.log.info('Removing old images...')
+            self.remove_old_images()
 
     def ensure_running_image_removal(self):
         """ Removes running image if requested """
