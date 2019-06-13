@@ -662,12 +662,13 @@ class iosfw(object):
             Optionally deletes the full path (any parent folders).
 
         """
-        self.log.info('Deleting {}...'.format(file_name))
         if delete_path:
             path = self._get_path(file_name)
             if path != self.config['dest_filesystem']:
+                self.log.info('Deleting {}...'.format(path))
                 self._delete_file(path)
             else:
+                self.log.info('Deleting {}...'.format(file_name))
                 self._delete_file(file_name)
         else:
             self._delete_file(file_name)
@@ -850,7 +851,7 @@ class iosfw(object):
             self.delete_running_image()
 
     def upgrade(self):
-        """ Performs firmware upgrade"""
+        """ Performs firmware upgrade """
         start_t = datetime.now()
         start = start_t.strftime('%X %x')
         if self.needs_upgrade and not self.firmware_installed:
