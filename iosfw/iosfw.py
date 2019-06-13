@@ -109,17 +109,18 @@ class iosfw(object):
         self.upgrade_installed = self.check_firmware_installed()
         self.needs_upgrade = self.check_needs_upgrade()
         self.upgrade_cmd = self._get_upgrade_cmd()
-        if 'copy' in self.upgrade_cmd:
-            self.upgrade_method = 'manual'
-        else:
-            self.upgrade_method = 'auto'
+        self.upgrade_method = self._get_upgrade_method()
         self.transfer_proto = self.config['transfer_proto']
         self.needs_reload = self.check_needs_reload()
         self.reload_scheduled = self.check_reload_scheduled()
-        if self.config['delete_old_image'] != 'never':
+        if self.config['delete_running_image'] != 'never':
             self.can_delete_running_image = True
         else:
             self.can_delete_running_image = False
+        if self.config['delete_old_images'] != 'never':
+            self.can_delete_old_images = True
+        else:
+            self.can_delete_old_images = False
         self.log.info("Connected to {} ({}) as {} via {}".format(
                       self.hostname, self.model, self.device.username,
                       self.transport))
@@ -151,6 +152,7 @@ class iosfw(object):
 
     def refresh_upgrade_status(self, log=False):
         """ Updates device status """
+        self.running_image_path = self.get_running_image()
         self.boot_image_path = self.get_boot_image()
         self.upgrade_installed = self.check_firmware_installed()
         self.needs_reload = self.check_needs_reload()
@@ -184,7 +186,7 @@ class iosfw(object):
                    'file {} new on-reboot'.format(image_src)
         if method == 'archive':
             flags = ' '
-            if self.config['delete_old_image'] == 'never':
+            if self.config['delete_running_image'] == 'never':
                 flags += '/safe /leave-old-sw '
             else:
                 flags += '/overwrite '
@@ -193,6 +195,13 @@ class iosfw(object):
             return 'archive download-sw{}{}'.format(flags, image_src)
         if method == 'copy':
             return 'copy {} {}'.format(image_src, image_dest)
+
+    def _get_upgrade_method(self):
+        """ Checks whether IOS supports automatic or manual upgrade """
+        if re.search(r'^copy', self.upgrade_cmd):
+            return 'manual'
+        else:
+            return 'auto'
 
     def _strip_extension(self, file_name=None):
         """ Returns a file name without the extension """
@@ -406,6 +415,21 @@ class iosfw(object):
         # TODO: Better validation here
         return output.split(': ')[-1].strip()
 
+    def get_old_images(self):
+        """ Checks dest_filesystem for old image files """
+        results = []
+        cmd = 'dir {}'.format(self.config['dest_filesystem'])
+        output = self.device.send_command_timing(cmd)
+        for line in output.split("\n"):
+            file_name = re.split(r'\s+', line)[-1]
+            # c3560e-universalk9-mz.152-4.E8
+            pattern = r'\w+-\w+-\w+.\d+-\d+\.\w+'
+            match = re.search(pattern, file_name)
+            if match:
+                if match.group(0) not in self.running_image_path:
+                    results.append(match.group(0))
+        return results
+
     def set_boot_image(self, new_boot_image_path=None):
         """ Configures device to boot given image on next reload """
         if new_boot_image_path is None:
@@ -480,7 +504,7 @@ class iosfw(object):
 
     def check_upgrade_image_running(self):
         """ Check if running image is the current version """
-        if self.upgrade_version in self.os_version:
+        if self.upgrade_version == self.running_version:
             return True
         else:
             return False
@@ -626,13 +650,6 @@ class iosfw(object):
                       scheduled['absolute_time'],
                       scheduled['relative_time']))
 
-    def ensure_reload_if_needed(self):
-        """ Schedules reload if needed """
-        if self.needs_reload:
-            self.ensure_reload()
-        else:
-            self.log.info('No reload needed.')
-
     def _delete_file(self, file_name):
         """ Deletes a remote file from device """
         cmd = 'del /recursive /force {}'.format(file_name)
@@ -642,31 +659,39 @@ class iosfw(object):
         """ Deletes a remote file from device only if it exists.
             Optionally deletes the full path (any parent folders).
 
-        Returns (bool):
-            - True: changes made
-            - False: no changes made
-
         """
-        if self.ft.check_file_exists():
-            if delete_path:
-                path = self._get_path(file_name)
-                if path != self.config['dest_filesystem']:
-                    self._delete_file(path)
+        self.log.info('Deleting {}...'.format(file_name))
+        if delete_path:
+            path = self._get_path(file_name)
+            if path != self.config['dest_filesystem']:
+                self._delete_file(path)
             else:
                 self._delete_file(file_name)
-            if self.ft.check_file_exists():
-                msg = "Attempted file deletion, but file still exists."
-                raise ValueError(msg)
-            else:
-                return True
         else:
-            return False
+            self._delete_file(file_name)
 
     def delete_running_image(self):
         """ Deletes currently running image, including folder """
         self.ensure_file_deleted(self.running_image_path)
+        self.log.info("Running image deleted.")
 
-    def _init_transfer(self, src_file=None):
+    def delete_old_images(self):
+        """ Deletes images on dest_filesystem that are not running """
+        cmd = 'request platform software package clean switch all'
+        output = self.device.send_command(cmd, expect_string=r'(proceed|\#)')
+        if 'Invalid input' in output:
+            old_images = self.get_old_images()
+            if old_images:
+                for image in old_images:
+                    self.ensure_file_deleted(image)
+        if 'proceed' in output:
+            self.log.debug('Proceeding with package clean...')
+            output += self.device.send_command_timing("y")
+        if 'SUCCESS' in output:
+            self.log.info('Deleted old images successfully.')
+        self.log.debug(output)
+
+    def _init_transfer(self, src_file=None, dest_file=None):
         """ Sets up file transfer session.
 
             Even if we don't use scp to copy
@@ -676,12 +701,13 @@ class iosfw(object):
         """
         if src_file is None:
             src_file = self.upgrade_image_src_path
-        if self.transport == 'ssh':
+        if dest_file is None:
             dest_file = self._get_dest_path(absolute=False)
+        if self.transport == 'ssh':
             ft_args = {
                 'ssh_conn': self.device,
                 'source_file': src_file,
-                'dest_file': dest_file,
+                'dest_file': self._get_dest_path(dest_file, absolute=False),
                 'file_system': self.config['dest_filesystem'],
             }
             self.ft = FileTransfer(**ft_args)
@@ -760,17 +786,19 @@ class iosfw(object):
             self.log.info("Found enough free space!")
         else:
             self.log.info("Not enough space.")
-            # TODO: Delete old (not running) images first
-            if self.can_delete_running_image:
-                self.log.info("Removing running image...")
-                self.delete_running_image()
-                self.log.info("Running image deleted.")
-                if not self.ft.verify_space_available():
+            if self.can_delete_old_images:
+                self.log.info("Removing old images...")
+                self.delete_old_images()
+            if not self.ft.verify_space_available():
+                if self.can_delete_running_image:
+                    self.log.info("Removing running image...")
+                    self.delete_running_image()
+                    if not self.ft.verify_space_available():
+                        msg = "Still not enough space. Cannot continue."
+                        raise ValueError(msg)
+                else:
                     msg = "Still not enough space. Cannot continue."
                     raise ValueError(msg)
-            else:
-                msg = "Not enough space, and can't delete running image."
-                raise ValueError(msg)
 
     def copy_validate_image(self):
         """ Copies and validates image file """
@@ -807,6 +835,15 @@ class iosfw(object):
             self.ensure_free_space()
             self.copy_validate_image()
 
+    def ensure_old_image_removal(self):
+        """ Deletes old images if requested """
+        if self.config['delete_old_images'] == 'always':
+            self.log.info('Removing old images...')
+            self.delete_old_images()
+        if self.config['delete_running_image'] == 'always':
+            self.log.info('Removing old running image...')
+            self.delete_running_image()
+
     def upgrade(self):
         """ Performs firmware upgrade"""
 
@@ -823,8 +860,9 @@ class iosfw(object):
             else:
                 self.ensure_install()
             if self.upgrade_success:
+                self.ensure_old_image_removal()
                 self.refresh_upgrade_status()
-                self.ensure_reload_if_needed()
+                self.ensure_reload()
                 end_t = datetime.now()
                 end = end_t.strftime('%x %X')
                 msg = "Upgrade on {} completed at {}".format(self.hostname,
