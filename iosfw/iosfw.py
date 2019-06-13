@@ -106,7 +106,7 @@ class iosfw(object):
         self.upgrade_image_dest_path = \
             self._get_dest_path(self.upgrade_image_name)
         self.boot_image_path = self.get_boot_image()
-        self.upgrade_installed = self.check_firmware_installed()
+        self.firmware_installed = self.check_firmware_installed()
         self.needs_upgrade = self.check_needs_upgrade()
         self.upgrade_cmd = self._get_upgrade_cmd()
         self.upgrade_method = self._get_upgrade_method()
@@ -130,7 +130,9 @@ class iosfw(object):
         """ Logs upgrade-related facts about device """
         if refresh:
             self.refresh_upgrade_status()
-        if self.upgrade_installed:
+        self.log.info("Running version: {}".format(self.running_version))
+        self.log.info("Upgrade version: {}".format(self.upgrade_version))
+        if self.firmware_installed:
             if self.needs_reload:
                 self.log.info("Upgrade status: FIRMWARE INSTALLED")
                 if self.reload_scheduled:
@@ -143,14 +145,12 @@ class iosfw(object):
                 self.log.info("Upgrade status: COMPLETE")
         else:
             self.log.info("Upgrade status: NEEDS UPGRADE")
-        self.log.info("Upgrade version: {}".format(self.upgrade_version))
-        self.log.info("Running version: {}".format(self.running_version))
 
     def refresh_upgrade_status(self, log=False):
         """ Updates device status """
         self.running_image_path = self.get_running_image()
         self.boot_image_path = self.get_boot_image()
-        self.upgrade_installed = self.check_firmware_installed()
+        self.firmware_installed = self.check_firmware_installed()
         self.needs_reload = self.check_needs_reload()
         self.reload_scheduled = self.check_reload_scheduled()
         if log:
@@ -764,7 +764,7 @@ class iosfw(object):
         """ Checks if firmware install is necessary, requesting if so """
         src_file = self._get_src_path(local=True)
         self._init_transfer(src_file)
-        if not self.upgrade_installed:
+        if not self.firmware_installed:
             self.log.info('New firmware not installed.')
             self.ensure_free_space()
             self.request_install()
@@ -844,33 +844,41 @@ class iosfw(object):
     def upgrade(self):
         """ Performs firmware upgrade"""
 
+        # TODO: Break this into separate methods
         self.log.info("===============================================")
-        start_t = datetime.now()
-        start = start_t.strftime('%X %x')
         if self.needs_upgrade:
-            msg = "Starting upgrade on {} at {}...".format(self.hostname,
-                                                           start)
-            self.log.info(msg)
-            if self.upgrade_method == 'manual':
-                self.ensure_image_state()
-                self.ensure_boot_image()
-            else:
-                self.ensure_install()
-            if self.upgrade_success:
-                self.ensure_old_image_removal()
-                self.refresh_upgrade_status()
-                self.ensure_reload()
-                end_t = datetime.now()
-                end = end_t.strftime('%X %x')
-                msg = "Upgrade on {} completed at {}".format(self.hostname,
-                                                             end)
+            start_t = datetime.now()
+            start = start_t.strftime('%X %x')
+            if not self.firmware_installed:
+                msg = "Starting upgrade on {} at {}...".format(self.hostname,
+                                                               start)
                 self.log.info(msg)
-            else:
-                end_t = datetime.now()
-                end = end_t.strftime('%X %x')
-                msg = "Upgrade on {} failed at {}".format(self.hostname,
-                                                          end)
-                self.log.info(msg)
+                if self.upgrade_method == 'manual':
+                    self.ensure_image_state()
+                    self.ensure_boot_image()
+                else:
+                    self.ensure_install()
+                if self.upgrade_success:
+                    self.ensure_old_image_removal()
+                    self.refresh_upgrade_status()
+                    self.ensure_reload()
+                    end_t = datetime.now()
+                    end = end_t.strftime('%X %x')
+                    msg = "Upgrade on {} completed at {}".format(self.hostname,
+                                                                 end)
+                    self.log.info(msg)
+                else:
+                    end_t = datetime.now()
+                    end = end_t.strftime('%X %x')
+                    msg = "Upgrade on {} failed at {}".format(self.hostname,
+                                                              end)
+                    self.log.info(msg)
+            if self.needs_reload:
+                if not self.reload_scheduled:
+                    self.ensure_reload()
+                else:
+                    self.log.info('Reload already scheduled! Nothing to do.')
+                    end_t = datetime.now()
         else:
             end_t = datetime.now()
             self.log.info("Already running current firmware! Nothing to do.")
