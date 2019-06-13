@@ -38,12 +38,12 @@ Username [austindcc]:
 Password:
 Enable secret:
 Opening connection to palermoidf2c...
-Connected to PalermoIDF2c (WS-C3560X-48P) as adecoup via ssh
+Connected to ios-sw-1 (WS-C3560X-48P) as adecoup via ssh
 Running version: 12.2(55)SE8
 Upgrade version: 15.2(4)E8
 Upgrade status: NEEDS UPGRADE
 >>> device.upgrade()
-Starting upgrade on PalermoIDF2c at 14:34:09 06/13/19...
+Starting upgrade on ios-sw-1 at 14:34:09 06/13/19...
 Checking free space...
 Found enough free space!
 Installing new firmware...
@@ -54,7 +54,7 @@ Deleting flash:/c3560e-universalk9-mz.122-55.SE8...
 Running image deleted.
 Scheduling reload...
 Reload scheduled for 00:00:00 PDT Fri Jun 14 2019 (9 hours and 16 minutes away)
-Upgrade on PalermoIDF2c completed at 14:43:32 06/13/19
+Upgrade on ios-sw-1 completed at 14:43:32 06/13/19
 Total time elapsed: 0:09:23.224298
 ```
 
