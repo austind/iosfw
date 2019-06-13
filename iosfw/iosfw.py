@@ -689,7 +689,7 @@ class iosfw(object):
         elif 'proceed' in output:
             self.log.debug('Proceeding with package clean...')
             output += self.device.send_command_timing("y")
-        elif 'Nothing to delete' in output:
+        if 'Nothing to delete' in output:
             self.log.info('Found no old images to remove.')
         elif 'Files deleted' in output:
             self.log.info('Deleted old images.')
