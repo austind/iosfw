@@ -765,7 +765,6 @@ class iosfw(object):
         src_file = self._get_src_path(local=True)
         self._init_transfer(src_file)
         if not self.firmware_installed:
-            self.log.info('New firmware not installed.')
             self.ensure_free_space()
             self.request_install()
         else:
@@ -837,13 +836,15 @@ class iosfw(object):
         if self.config['delete_old_images'] == 'always':
             self.log.info('Removing old images...')
             self.delete_old_images()
+            
+    def ensure_running_image_removal(self):
+        """ Deletes running image if requested """
         if self.config['delete_running_image'] == 'always':
             self.log.info('Removing old running image...')
             self.delete_running_image()
 
     def upgrade(self):
         """ Performs firmware upgrade"""
-
         start_t = datetime.now()
         start = start_t.strftime('%X %x')
         if self.needs_upgrade and not self.firmware_installed:
@@ -857,6 +858,7 @@ class iosfw(object):
                 self.ensure_install()
             if self.upgrade_success:
                 self.ensure_old_image_removal()
+                self.ensure_running_image_removal()
                 self.refresh_upgrade_status()
                 self.ensure_reload()
                 end_t = datetime.now()
