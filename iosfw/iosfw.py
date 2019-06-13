@@ -173,7 +173,7 @@ class iosfw(object):
         ]
         for cmd in cmds:
             output = self.device.send_command(cmd + ' ?')
-            if 'Unknown' not in output:
+            if 'Unknown' not in output and 'Unrecognized' not in output:
                 method = cmd
                 break
         if method == 'request':
@@ -188,8 +188,8 @@ class iosfw(object):
                 flags += '/safe /leave-old-sw '
             else:
                 flags += '/overwrite '
-            if not self.config['match_feature_set']:
-                flags += '/allow-feature-upgrade '
+            #if not self.config['match_feature_set']:
+            #    flags += '/allow-feature-upgrade '
             return 'archive download-sw{}{}'.format(flags, image_src)
         if method == 'copy':
             return 'copy {} {}'.format(image_src, image_dest)
@@ -549,8 +549,8 @@ class iosfw(object):
         """ Check if a reload is scheduled """
         self._ensure_enable_not_config()
         output = self.device.send_command('show reload')
-        pattern = r'^Reload scheduled for (.+?) \(in (.+?)\).*$'
-        match = re.match(pattern, output)
+        pattern = r'Reload scheduled for (.+?) \(in (.+?)\)'
+        match = re.search(pattern, output)
         if match:
             return {'absolute_time': match.group(1),
                     'relative_time': match.group(2)}
