@@ -761,10 +761,12 @@ class iosfw(object):
             for line in output.split("\n"):
                 if 'Error' in line:
                     self.log.critical(line)
-        else:
+        elif 'All software images installed' in output:
             self.upgrade_success = True
-            
             self.log.info('Install successful!')
+        else:
+            msg = "Unexpected output from request_install()"
+            raise ValueError(msg)
 
     def ensure_install(self):
         """ Checks if firmware install is necessary, requesting if so """
