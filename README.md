@@ -31,38 +31,31 @@ Other features:
 
 ### Interactive
 
-Basic example:
-
-```
-$ python2.7
-Python 2.7.12 (default, Nov 12 2018, 14:36:49)
-[GCC 5.4.0 20160609] on linux2
-Type "help", "copyright", "credits" or "license" for more information.
+```py
 >>> from iosfw import iosfw
 >>> device = iosfw('ios-sw-1')
 Username [austindcc]:
 Password:
 Enable secret:
-Opening connection to ios-sw-1...
-Connected to ios-sw-1 (WS-C3560X-48P) as austindcc via ssh
-Upgrade status: NEEDS UPGRADE
+Opening connection to palermoidf2c...
+Connected to PalermoIDF2c (WS-C3560X-48P) as adecoup via ssh
+Running version: 12.2(55)SE8
 Upgrade version: 15.2(4)E8
-Running version: 15.0(2)SE11
+Upgrade status: NEEDS UPGRADE
 >>> device.upgrade()
-===============================================
-Starting upgrade on ios-sw-1...
-Upgrade package not installed.
+Starting upgrade on PalermoIDF2c at 14:34:09 06/13/19...
 Checking free space...
-Not enough space.
-Removing old image...
-Old image deleted.
-Sending upgrade request...
-NOTE: No status updates possible during upgrade, which may take 10 minutes or longer.
-Checking reload status...
-No reload scheduled. Scheduling...
-Reload scheduled for 00:00:00 PDT Thu Jun 13 2019 (9 hours and 17 minutes away)                                                                                             "/mnt/c/Users/adecoup/" 14:42 12-Jun-19
-Upgrade on ios-sw-1 complete!
-===============================================
+Found enough free space!
+Installing new firmware...
+NOTE: No status updates possible during install, which may take 10 minutes or longer.
+Install successful!
+Removing running image...
+Deleting flash:/c3560e-universalk9-mz.122-55.SE8...
+Running image deleted.
+Scheduling reload...
+Reload scheduled for 00:00:00 PDT Fri Jun 14 2019 (9 hours and 16 minutes away)
+Upgrade on PalermoIDF2c completed at 14:43:32 06/13/19
+Total time elapsed: 0:09:23.224298
 ```
 
 ### Automated
