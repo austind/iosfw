@@ -93,7 +93,7 @@ class iosfw(object):
         self.upgrade_image_valid = False
         self.upgrade_space_available = False
         self.running_image_path = self.get_running_image()
-        self.running_image_name = self.get_basename(self.running_image_path)
+        self.running_image_name = self._get_basename(self.running_image_path)
         self.running_image_feature_set = \
             self._get_image_feature_set(self.running_image_name)
         self.upgrade_image_name = self.get_upgrade_image_name()
@@ -104,7 +104,7 @@ class iosfw(object):
         self.upgrade_image_dest_path = \
             self._get_dest_path(self.upgrade_image_name)
         self.boot_image_path = self.get_boot_image()
-        self.upgrade_installed = self.check_upgrade_installed()
+        self.upgrade_installed = self.check_firmware_installed()
         self.needs_upgrade = self.check_needs_upgrade()
         self.upgrade_cmd = self._get_upgrade_cmd()
         if 'copy' in self.upgrade_cmd:
@@ -150,7 +150,7 @@ class iosfw(object):
     def refresh_upgrade_status(self, log=False):
         """ Updates device status """
         self.boot_image_path = self.get_boot_image()
-        self.upgrade_installed = self.check_upgrade_installed()
+        self.upgrade_installed = self.check_firmware_installed()
         self.needs_reload = self.check_needs_reload()
         self.reload_scheduled = self.check_reload_scheduled()
         if log:
@@ -338,7 +338,7 @@ class iosfw(object):
               % (self.model, self.image_file)
         raise ValueError(msg)
 
-    def get_basename(self, file_path):
+    def _get_basename(self, file_path):
         """ Returns a file name from a file path
 
             Example input: 'flash:/c3750-ipbase-mz.122-25.SEE1.bin'
@@ -346,6 +346,11 @@ class iosfw(object):
 
         """
         return re.split(r'[:/]', file_path)[-1]
+
+    def _get_path(self, file_path):
+        """ Returns a file's path, not including the file itself """
+        basename = self._get_basename(file_path)
+        return file_path.replace(basename, '', file_path)
 
     def get_upgrade_version(self, raw=False):
         """ Parses image name to return IOS version string """
@@ -483,7 +488,7 @@ class iosfw(object):
         else:
             return True
 
-    def check_upgrade_installed(self):
+    def check_firmware_installed(self):
         """ Checks if upgrade package is already installed """
         version = self.get_upgrade_version(raw=True)
         if 'packages.conf' in self.boot_image_path:
@@ -500,7 +505,7 @@ class iosfw(object):
     def check_needs_reload(self):
         """ Check if running image does not equal boot image """
         if self.upgrade_method == 'auto':
-            if self.check_needs_upgrade() and self.check_upgrade_installed():
+            if self.check_needs_upgrade() and self.check_firmware_installed():
                 return True
             else:
                 return False
@@ -627,10 +632,11 @@ class iosfw(object):
     def _delete_file(self, file_name):
         """ Deletes a remote file from device """
         cmd = 'del /recursive /force {}'.format(file_name)
-        self.device.send_command_timing(cmd)
+        return self.device.send_command_timing(cmd)
 
-    def ensure_file_deleted(self, file_name):
-        """ Deletes a remote file from device only if it exists
+    def ensure_file_deleted(self, file_name, delete_path=True):
+        """ Deletes a remote file from device only if it exists.
+            Optionally deletes the full path (any parent folders).
 
         Returns (bool):
             - True: changes made
@@ -638,7 +644,12 @@ class iosfw(object):
 
         """
         if self.ft.check_file_exists():
-            self._delete_file(file_name)
+            if delete_path:
+                path = self._get_path(file_name)
+                if path != self.config['dest_filesystem']:
+                    self._delete_file(path)
+            else:
+                self._delete_file(file_name)
             if self.ft.check_file_exists():
                 msg = "Attempted file deletion, but file still exists."
                 raise ValueError(msg)
