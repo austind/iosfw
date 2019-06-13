@@ -1,5 +1,6 @@
 #!/usr/bin/env python2.7
 
+from datetime import datetime
 import getpass
 import hashlib
 import io
@@ -116,9 +117,9 @@ class iosfw(object):
         self.needs_reload = self.check_needs_reload()
         self.reload_scheduled = self.check_reload_scheduled()
         if self.config['delete_old_image'] != 'never':
-            self.can_delete_old_image = True
+            self.can_delete_running_image = True
         else:
-            self.can_delete_old_image = False
+            self.can_delete_running_image = False
         self.log.info("Connected to {} ({}) as {} via {}".format(
                       self.hostname, self.model, self.device.username,
                       self.transport))
@@ -661,6 +662,10 @@ class iosfw(object):
         else:
             return False
 
+    def delete_running_image(self):
+        """ Deletes currently running image, including folder """
+        self.ensure_file_deleted(self.running_image_path)
+
     def _init_transfer(self, src_file=None):
         """ Sets up file transfer session.
 
@@ -721,23 +726,20 @@ class iosfw(object):
         msg = 'NOTE: No status updates possible during install, ' \
               'which may take 10 minutes or longer.'
         self.log.info(msg)
-        # TODO: Log timestamps
         output = self.device.send_command(cmd, delay_factor=100)
         self.log.debug(output)
         if 'Error' in output:
-            # TODO: Install may fail even after deleting running image,
-            # since old images may still be present. Need to implement
-            # a way to find and remove old images.
             self.log.critical('Install failed:')
             for line in output.split("\n"):
                 if 'Error' in line:
                     self.log.critical(line)
         else:
             self.upgrade_success = True
+            
             self.log.info('Install successful!')
 
     def ensure_install(self):
-        """ Checks if upgrade is necessary, requesting if so """
+        """ Checks if firmware install is necessary, requesting if so """
         src_file = self._get_src_path(local=True)
         self._init_transfer(src_file)
         if not self.upgrade_installed:
@@ -749,19 +751,25 @@ class iosfw(object):
 
     def ensure_free_space(self):
         """ Checks for available free space, clearing if possible """
+        # TODO: Anticipate how much space we can reclaim by deleting
+        # running image. Don't proceed if deleting running image would
+        # not result in enough free space.
         self.log.info("Checking free space...")
         self.upgrade_space_available = self.ft.verify_space_available()
         if self.upgrade_space_available:
             self.log.info("Found enough free space!")
         else:
             self.log.info("Not enough space.")
-            if self.can_delete_old_image:
-                self.log.info("Removing old image...")
-                # TODO: Delete old image folder, not just .bin
-                self._delete_file(self.running_image_path)
-                self.log.info("Old image deleted.")
+            # TODO: Delete old (not running) images first
+            if self.can_delete_running_image:
+                self.log.info("Removing running image...")
+                self.delete_running_image()
+                self.log.info("Running image deleted.")
+                if not self.ft.verify_space_available():
+                    msg = "Still not enough space. Cannot continue."
+                    raise ValueError(msg)
             else:
-                msg = "Not enough space, and can't delete old image."
+                msg = "Not enough space, and can't delete running image."
                 raise ValueError(msg)
 
     def copy_validate_image(self):
@@ -800,12 +808,15 @@ class iosfw(object):
             self.copy_validate_image()
 
     def upgrade(self):
-        """ Performs firmware upgrade on device """
+        """ Performs firmware upgrade"""
 
         self.log.info("===============================================")
-
+        start_t = datetime.now()
+        start = start_t.strftime('%X %x')
         if self.needs_upgrade:
-            self.log.info("Starting upgrade on {}...".format(self.hostname))
+            msg = "Starting upgrade on {} at {}...".format(self.hostname,
+                                                           start)
+            self.log.info(msg)
             if self.upgrade_method == 'manual':
                 self.ensure_image_state()
                 self.ensure_boot_image()
@@ -814,10 +825,19 @@ class iosfw(object):
             if self.upgrade_success:
                 self.refresh_upgrade_status()
                 self.ensure_reload_if_needed()
-                self.log.info("Upgrade on {} complete!".format(self.hostname))
+                end_t = datetime.now()
+                end = end_t.strftime('%x %X')
+                msg = "Upgrade on {} completed at {}".format(self.hostname,
+                                                             end)
+                self.log.info(msg)
             else:
-                self.log.info("Upgrade on {} failed.".format(self.hostname))
+                end_t = datetime.now()
+                end = end_t.strftime('%x %X')
+                msg = "Upgrade on {} failed at {}".format(self.hostname,
+                                                          end)
+                self.log.info(msg)
         else:
+            end_t = datetime.now()
             self.log.info("Already running current firmware! Nothing to do.")
-
+        self.log.info("Total time elapsed: {}".format(end_t - start_t))
         self.log.info("===============================================")
