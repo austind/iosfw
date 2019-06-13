@@ -78,7 +78,7 @@ class iosfw(object):
         self.napalm = napalm_driver(hostname=hostname, username=username,
                                     password=password, timeout=timeout,
                                     optional_args=optional_args)
-
+        self.log.info("===============================================")
         self.log.info('Opening connection to {}...'.format(hostname))
         self.napalm.open()
 
@@ -844,43 +844,35 @@ class iosfw(object):
     def upgrade(self):
         """ Performs firmware upgrade"""
 
-        # TODO: Break this into separate methods
-        self.log.info("===============================================")
-        if self.needs_upgrade:
-            start_t = datetime.now()
-            start = start_t.strftime('%X %x')
-            if not self.firmware_installed:
-                msg = "Starting upgrade on {} at {}...".format(self.hostname,
-                                                               start)
+        start_t = datetime.now()
+        start = start_t.strftime('%X %x')
+        if self.needs_upgrade and not self.firmware_installed:
+            msg = "Starting upgrade on {} at {}...".format(self.hostname,
+                                                           start)
+            self.log.info(msg)
+            if self.upgrade_method == 'manual':
+                self.ensure_image_state()
+                self.ensure_boot_image()
+            else:
+                self.ensure_install()
+            if self.upgrade_success:
+                self.ensure_old_image_removal()
+                self.refresh_upgrade_status()
+                self.ensure_reload()
+                end_t = datetime.now()
+                end = end_t.strftime('%X %x')
+                msg = "Upgrade on {} completed at {}".format(self.hostname,
+                                                             end)
                 self.log.info(msg)
-                if self.upgrade_method == 'manual':
-                    self.ensure_image_state()
-                    self.ensure_boot_image()
-                else:
-                    self.ensure_install()
-                if self.upgrade_success:
-                    self.ensure_old_image_removal()
-                    self.refresh_upgrade_status()
-                    self.ensure_reload()
-                    end_t = datetime.now()
-                    end = end_t.strftime('%X %x')
-                    msg = "Upgrade on {} completed at {}".format(self.hostname,
-                                                                 end)
-                    self.log.info(msg)
-                else:
-                    end_t = datetime.now()
-                    end = end_t.strftime('%X %x')
-                    msg = "Upgrade on {} failed at {}".format(self.hostname,
-                                                              end)
-                    self.log.info(msg)
-            if self.needs_reload:
-                if not self.reload_scheduled:
-                    self.ensure_reload()
-                else:
-                    self.log.info('Reload already scheduled! Nothing to do.')
-                    end_t = datetime.now()
+            else:
+                end_t = datetime.now()
+                end = end_t.strftime('%X %x')
+                msg = "Upgrade on {} failed at {}".format(self.hostname,
+                                                          end)
+                self.log.info(msg)
+        elif self.needs_reload and not self.reload_scheduled:
+            self.ensure_reload()
         else:
-            end_t = datetime.now()
-            self.log.info("Already running current firmware! Nothing to do.")
+            self.log.info("No action needed.")
+        end_t = datetime.now()
         self.log.info("Total time elapsed: {}".format(end_t - start_t))
-        self.log.info("===============================================")
