@@ -684,6 +684,7 @@ class iosfw(object):
         output = self.device.send_command(cmd, expect_string=r'(proceed|\#)')
         if 'Invalid input' in output:
             if self.old_images:
+                self.log.info('Removing old images...')
                 for image in self.old_images:
                     self.ensure_file_deleted(image)
         elif 'proceed' in output:
@@ -847,7 +848,6 @@ class iosfw(object):
     def ensure_old_image_removal(self):
         """ Deletes old images if requested """
         if self.config['delete_old_images'] == 'always':
-            self.log.info('Removing old images...')
             self.remove_old_images()
 
     def ensure_running_image_removal(self):
