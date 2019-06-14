@@ -680,23 +680,23 @@ class iosfw(object):
         """ Deletes images on dest_filesystem that are not running """
         cmd = 'request platform software package clean switch all'
         output = self.device.send_command(cmd, expect_string=r'(proceed|\#)')
-        if 'Invalid input' in output:
+        self.log.debug(output)
+        if 'Nothing to delete' in output or 'Nothing to clean' in output:
+            self.log.info("Found no old images to remove.")
+        elif 'proceed' in output:
+            self.log.debug("Proceeding with package clean...")
+            output += self.device.send_command_timing("y")
+            if 'Files deleted' in output:
+                self.log.info("Removed old images.")
+        elif 'Invalid input' in output:
             if self.old_images:
                 self.log.info("Removing old images...")
                 for image in self.old_images:
                     self.ensure_file_deleted(image)
-        elif 'proceed' in output:
-            self.log.debug("Proceeding with package clean...")
-            output += self.device.send_command_timing("y")
-        if 'Nothing to delete' in output:
-            self.log.info("Found no old images to remove.")
-        elif 'Files deleted' in output:
-            self.log.info("Removed old images.")
         else:
             msg = "Unexpected output from remove_old_images():\n" \
                   "{}".format(output)
             raise ValueError(msg)
-        self.log.debug(output)
 
     def _init_transfer(self, src_file=None, dest_file=None):
         """ Sets up file transfer session.
