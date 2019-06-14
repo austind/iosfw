@@ -14,12 +14,12 @@ from shutil import rmtree
 from setuptools import find_packages, setup, Command
 
 # Package meta-data.
-NAME = 'fw_upgrade'
+NAME = 'iosfw'
 DESCRIPTION = 'Automates upgrading firmware on Cisco IOS devices.'
-URL = 'https://github.com/austind/fw_upgrade'
+URL = 'https://github.com/austind/iosfw'
 EMAIL = 'austindcc@gmail.com'
 AUTHOR = 'Austin de Coup-Crank'
-REQUIRES_PYTHON = '>=2.7.0'
+REQUIRES_PYTHON = '>=3.5'
 VERSION = None
 
 # What packages are required for this module to be executed?
@@ -120,10 +120,8 @@ setup(
         # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy'
     ],
