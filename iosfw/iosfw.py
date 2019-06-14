@@ -94,6 +94,8 @@ class iosfw(object):
         self.upgrade_image_valid = False
         self.upgrade_space_available = False
         self.upgrade_success = False
+        self.transfer_proto = self.config['transfer_proto']
+        self.transfer_source = self.config['transfer_source']
         self.running_image_path = self.get_running_image()
         self.running_image_name = self._get_basename(self.running_image_path)
         self.running_image_feature_set = \
@@ -165,6 +167,10 @@ class iosfw(object):
         """ Returns a command string for auto-upgrade, if supported """
         image_src = self._get_src_path()
         image_dest = self._get_dest_path()
+        if self.transfer_source == 'localhost':
+            img = image_dest
+        else:
+            img = image_src
         cmds = [
             'request',
             'software',
@@ -178,17 +184,17 @@ class iosfw(object):
                 break
         if method == 'request':
             return 'request platform software package install switch all ' \
-                   'file {} new auto-copy'.format(image_src)
+                   'file {} new auto-copy'.format(img)
         if method == 'software':
             return 'software install ' \
-                   'file {} new on-reboot'.format(image_src)
+                   'file {} new on-reboot'.format(img)
         if method == 'archive':
             flags = ' '
             if self.config['delete_running_image'] == 'never':
                 flags += '/safe /leave-old-sw '
             else:
                 flags += '/overwrite '
-            return 'archive download-sw{}{}'.format(flags, image_src)
+            return 'archive download-sw{}{}'.format(flags, img)
         if method == 'copy':
             return 'copy {} {}'.format(image_src, image_dest)
 
@@ -804,6 +810,8 @@ class iosfw(object):
         self._init_transfer(src_file)
         if not self.firmware_installed:
             self.ensure_free_space()
+            if self.transfer_source == 'localhost':
+                self.request_transfer()
             self.request_install()
         else:
             self.log.info("New firmware already installed!")
