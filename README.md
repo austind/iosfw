@@ -20,7 +20,13 @@ Other features:
 * Logs progress to console and/or file, with configurable verbosity
 * Works with ad-hoc upgrades (interactive) or batch jobs (non-interactive)
 
-**NOTE:** This is beta software in active development. It works well in my environment, but serious bugs are possible. Use at your own risk.
+Requires:
+* Python 3.x
+* netmiko
+* napalm
+* tqdm
+
+**NOTE: Use at your own risk.** This is beta software in active development. It works well in my environment, but serious bugs are possible.
 
 ## Usage
 
@@ -68,4 +74,3 @@ See [`example/batch_example.py`](https://github.com/austind/iosfw/blob/master/ex
 * Expect devices to take between 10 and 30 minutes to come back after reload, especially if upgrading from 12.x to 15.x, due to microcode updates.
 * The `iosfw` class exposes all of NAPALM's config parameters, and stores the NAPALM session under `self.napalm`, so you can use all of NAPALM's features easily.
 * Same goes for netmiko - stored as `self.device` - so you can send arbitrary commands with `iosfw.device.send_command('my arbitrary command')`
-* Tested on Python 2.7. Porting to 3.x in the works.

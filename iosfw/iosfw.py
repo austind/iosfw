@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+# -*- coding: utf-8 -*-
 
 from datetime import datetime
 import getpass
@@ -43,14 +43,12 @@ class iosfw(object):
             fh.setLevel(file_level)
             fh.setFormatter(formatter)
             self.log.addHandler(fh)
-
         if self.log_method == 'tee' or self.log_method == 'console':
             formatter = logging.Formatter('%(message)s')
             ch = logging.StreamHandler()
             ch.setLevel(console_level)
             ch.setFormatter(formatter)
             self.log.addHandler(ch)
-
         self.log.debug('Config file: {}'.format(self.config_file))
         self.log.debug('Config parameters: {}'.format(self.config))
         self.log.debug('Image file: {}'.format(self.image_file))
@@ -58,10 +56,10 @@ class iosfw(object):
 
         # Set up connection
         if hostname is None:
-            hostname = str(raw_input('Hostname or IP: '))
+            hostname = str(input('Hostname or IP: '))
         if username is None:
             whoami = getpass.getuser()
-            username = str(raw_input('Username [{}]: '.format(whoami))) \
+            username = str(input('Username [{}]: '.format(whoami))) \
                 or whoami
         if password is None:
             password = getpass.getpass()
@@ -72,7 +70,6 @@ class iosfw(object):
             if self.config['ssh_config_file']:
                 optional_args.update({'ssh_config_file':
                                      self.config['ssh_config_file']})
-
         napalm_driver = napalm.get_network_driver(driver)
         self.napalm = napalm_driver(hostname=hostname, username=username,
                                     password=password, timeout=timeout,
@@ -319,7 +316,7 @@ class iosfw(object):
 
     def get_upgrade_image_name(self):
         """ Returns the file name of the device's upgrade image  """
-        for file_name, attrs in self.image_info.iteritems():
+        for file_name, attrs in self.image_info.items():
             if self.model in attrs['models']:
                 if self.config['match_feature_set']:
                     if not self._check_image_feature_set(file_name):
