@@ -432,7 +432,8 @@ class iosfw(object):
     def get_old_images(self):
         """ Checks dest_filesystem for old image files """
         results = []
-        cmd = 'dir {}'.format(self.config['dest_filesystem'])
+        dest_fs = self.config['dest_filesystem']
+        cmd = 'dir {}'.format(dest_fs)
         output = self.device.send_command_timing(cmd)
         for line in output.split("\n"):
             file_name = re.split(r'\s+', line)[-1]
@@ -444,7 +445,7 @@ class iosfw(object):
                 match_version = self._get_version_from_file(match.group(0))
                 if match_version != self.running_version and \
                    match_version != self.upgrade_version:
-                    results.append(file_name)
+                    results.append('{}/{}'.format(dest_fs, file_name))
         return results
 
     def set_boot_image(self, new_boot_image_path=None):
