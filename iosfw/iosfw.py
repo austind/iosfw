@@ -400,8 +400,8 @@ class iosfw(object):
         if search_string in output:
             return output.replace(search_string, '').replace('"', '')
         else:
-            msg = "Could not find running image. Last output:\n{}" \
-                  % output
+            msg = "Could not find running image. " \
+                  "Last output:\n{}".format(output)
             raise ValueError(msg)
 
     def get_boot_image(self):
@@ -636,8 +636,8 @@ class iosfw(object):
             return check_reload_scheduled
         else:
             msg = "Tried to schedule reload with `{}`, " \
-                  "but check_reload_scheduled() failed. Output:\n{}" \
-                  % (cmd, output)
+                  "but check_reload_scheduled() failed. " \
+                  "Output:\n{}".format(cmd, output)
             raise ValueError(msg)
 
     def ensure_reload(self):
