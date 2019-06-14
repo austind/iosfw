@@ -252,7 +252,6 @@ class iosfw(object):
 
     def _check_remote_file_exists(self, file_path):
         """ Checks if a file exists on the remote filesystem """
-        file_path = self._get_dest_path(file_path)
         cmd = 'dir {}'.format(file_path)
         output = self.device.send_command(cmd)
         if 'No such file' in output:
