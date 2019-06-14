@@ -1,3 +1,8 @@
+c2960s-universalk9-tar.152-2.E9.tar:
+    md5: 66f500dc7da233da4c01f1856363cc2d
+    models:
+        - WS-C2960S-48TS-L
+
 c2960x-universalk9-tar.152-4.E8.tar:
     md5: e0207f1709cf04f3461b012bf4fdd04f
     models:
