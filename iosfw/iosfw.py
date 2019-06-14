@@ -340,8 +340,8 @@ class iosfw(object):
                     msg = "Image file does not exist: " \
                           "{}".format(upgrade_image_path)
                     raise ValueError(msg)
-        msg = "Could not find upgrade image for model {} in image file {}." \
-              % (self.model, self.image_file)
+        msg = "Could not find upgrade image for model " \
+              "{} in image file {}.".format(self.model, self.image_file)
         raise ValueError(msg)
 
     def _get_basename(self, file_path):
