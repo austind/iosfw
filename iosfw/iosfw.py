@@ -250,6 +250,20 @@ class iosfw(object):
             file_hash = hashlib.md5(file_contents).hexdigest()
         return file_hash
 
+    def _check_remote_file_exists(self, file_path):
+        """ Checks if a file exists on the remote filesystem """
+        file_path = self._get_dest_path(file_path)
+        cmd = 'dir {}'.format(file_path)
+        output = self.device.send_command(cmd)
+        if 'No such file' in output:
+            return False
+        elif 'Directory of' in output:
+            return True
+        else:
+            msg = "Unexpected output from _check_remote_file_exists(): \n" \
+                  "{}".format(output)
+            raise ValueError(msg)
+
     def _get_image_feature_set(self, file_name):
         """ Parses the feature set string from an IOS file name
 
@@ -360,12 +374,12 @@ class iosfw(object):
             basename = '/{}'.format(basename)
         return file_path.replace(basename, '')
 
-    def get_upgrade_version(self, raw=False):
-        """ Parses image name to return IOS version string """
-        if 'SPA' in self.upgrade_image_name:
+    def _get_version_from_file(self, file_name, raw=False):
+        """ Returns a version string from a file name """
+        if 'SPA' in file_name:
             # IOS XE
             pattern = r'(\d+\.\d+\.\d+)\.SPA'
-            match = re.search(pattern, self.upgrade_image_name)
+            match = re.search(pattern, file_name)
             if match:
                 if raw:
                     return match.group(1)
@@ -374,7 +388,7 @@ class iosfw(object):
         else:
             # IOS
             pattern = r'(\d{3})-(\d+)\.(\w+)'
-            match = re.search(pattern, self.upgrade_image_name)
+            match = re.search(pattern, file_name)
             if match:
                 if raw:
                     return match.group(0)
@@ -384,6 +398,10 @@ class iosfw(object):
                     throttle = match.group(2)
                     rebuild = match.group(3)
                     return '{}({}){}'.format(train, throttle, rebuild)
+
+    def get_upgrade_version(self, raw=False):
+        """ Parses image name to return IOS version string """
+        return self._get_version_from_file(self.upgrade_image_name, raw)
 
     def get_running_version(self):
         """ Parses self.os_version for IOS version string """
@@ -419,12 +437,14 @@ class iosfw(object):
         for line in output.split("\n"):
             file_name = re.split(r'\s+', line)[-1]
             # c3560e-universalk9-mz.152-4.E8
+            # c3560-ipbasek9-mz.122-55.SE12
             pattern = r'\w+-\w+-\w+.\d+-\d+\.\w+'
             match = re.search(pattern, file_name)
             if match:
-                if match.group(0) not in self.running_image_path and \
-                   match.group(0) not in self.upgrade_image_dest_path:
-                    results.append(match.group(0))
+                match_version = self._get_version_from_file(match.group(0))
+                if match_version != self.running_version and \
+                   match_version != self.upgrade_version:
+                    results.append(file_name)
         return results
 
     def set_boot_image(self, new_boot_image_path=None):
@@ -691,7 +711,8 @@ class iosfw(object):
         elif 'Invalid input' in output:
             if self.old_images:
                 for image in self.old_images:
-                    self.ensure_file_deleted(image)
+                    if self._check_remote_file_exists(image):
+                        self.ensure_file_deleted(image)
         else:
             msg = "Unexpected output from remove_old_images():\n" \
                   "{}".format(output)
@@ -851,8 +872,9 @@ class iosfw(object):
     def ensure_running_image_removal(self):
         """ Removes running image if requested """
         if self.config['delete_running_image'] == 'always':
-            self.log.info("Removing running image...")
-            self.delete_running_image()
+            if self._check_remote_file_exists(self.running_image_path):
+                self.log.info("Removing running image...")
+                self.delete_running_image()
 
     def upgrade(self):
         """ Performs firmware upgrade """
@@ -868,9 +890,9 @@ class iosfw(object):
             else:
                 self.ensure_install()
             if self.upgrade_success:
+                self.refresh_upgrade_state()
                 self.ensure_old_image_removal()
                 self.ensure_running_image_removal()
-                self.refresh_upgrade_state()
                 self.ensure_reload()
                 status = 'completed'
             else:
