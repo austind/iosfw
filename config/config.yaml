@@ -19,10 +19,10 @@ transfer_proto: 'ftp'
 # File transfer source machine
 # Set 'localhost' to serve on local machine
 # Currently supports only SCP from localhost.
-transfer_source: ''
+transfer_source: '10.100.3.37'
 
 # File transfer username (FTP)
-transfer_username: ''
+transfer_username: 'adecoup'
 
 # File transfer password (FTP)
 transfer_password: ''
@@ -122,7 +122,7 @@ reload_at: '00:00'
 #   - If dest_file_system does NOT have enough space for old and new
 #     images to coexist, old image will be deleted before copying new
 #     image.
-delete_running_image: 'as_needed'
+delete_running_image: 'always'
 
 # Conditions under which to delete old (not running) firmware images.
 #
@@ -145,7 +145,7 @@ delete_running_image: 'as_needed'
 #   - If dest_file_system does NOT have enough space for old and new
 #     images to coexist, old images will be deleted before copying new
 #     image.
-delete_old_images: 'as_needed'
+delete_old_images: 'always'
 
 # If SCP is not enabled, run these config commands (in this order) to
 # hopefully fix it.

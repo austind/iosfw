@@ -8,11 +8,15 @@ import napalm
 from netmiko import FileTransfer
 import os
 import re
+from time import sleep
 from tqdm import tqdm
 import yaml
 
 """ An API built upon NAPALM and Netmiko to manage Cisco IOS firmware. """
 
+# TODO: Feature to disable SSH timeouts during upgrade
+# TODO: Feature to serve FTP directly from iosfw
+# TODO: Feature to fix clock/NTP as needed
 
 class iosfw(object):
     def __init__(self, hostname=None, username=None, password=None,
@@ -637,7 +641,8 @@ class iosfw(object):
 
         # Schedule the reload
         self._ensure_enable_not_config()
-        output = self.device.send_command_timing(cmd)
+        e = r'(Save|Proceed|\#)'
+        output = self.device.send_command(cmd, expect_string=e)
         if 'Save?' in output:
             if save_modified_config:
                 response = 'yes'
@@ -649,7 +654,7 @@ class iosfw(object):
         if 'Proceed' in output:
             output += self.device.send_command_timing("\n")
         else:
-            msg = "Unexpected output from `{}`:\n{}".format((cmd, output))
+            msg = "Unexpected output from `{}`:\n{}".format(cmd, output)
             raise ValueError(msg)
         check_reload_scheduled = self.check_reload_scheduled()
         if check_reload_scheduled:
@@ -660,7 +665,7 @@ class iosfw(object):
                   "Output:\n{}".format(cmd, output)
             raise ValueError(msg)
 
-    def ensure_reload(self):
+    def ensure_reload_scheduled(self):
         """ Schedules a reload, if not already scheduled. """
         scheduled = self.check_reload_scheduled()
         if not scheduled:
@@ -893,7 +898,7 @@ class iosfw(object):
                 self.refresh_upgrade_state()
                 self.ensure_old_image_removal()
                 self.ensure_running_image_removal()
-                self.ensure_reload()
+                self.ensure_reload_scheduled()
                 status = 'completed'
             else:
                 status = 'failed'
@@ -904,7 +909,7 @@ class iosfw(object):
                                                   end)
             self.log.info(msg)
         elif self.needs_reload and not self.reload_scheduled:
-            self.ensure_reload()
+            self.ensure_reload_scheduled()
         else:
             self.log.info("No action needed.")
         end_t = datetime.now()
