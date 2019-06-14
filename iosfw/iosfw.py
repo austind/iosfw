@@ -438,7 +438,7 @@ class iosfw(object):
             file_name = re.split(r'\s+', line)[-1]
             # c3560e-universalk9-mz.152-4.E8
             # c3560-ipbasek9-mz.122-55.SE12
-            pattern = r'\w+-\w+-\w+.\d+-\d+\.\w+'
+            pattern = r'\w+-\w+-\w+.\d+-\w+\.\w+'
             match = re.search(pattern, file_name)
             if match:
                 match_version = self._get_version_from_file(match.group(0))
