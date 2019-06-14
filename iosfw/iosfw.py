@@ -691,9 +691,9 @@ class iosfw(object):
         if 'Nothing to delete' in output:
             self.log.info("Found no old images to remove.")
         elif 'Files deleted' in output:
-            self.log.info("Deleted old images.")
+            self.log.info("Removed old images.")
         else:
-            msg = "Unexpected output from remove_old_image():\n" \
+            msg = "Unexpected output from remove_old_images():\n" \
                   "{}".format(output)
             raise ValueError(msg)
         self.log.debug(output)
