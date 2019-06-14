@@ -5,9 +5,10 @@ import getpass
 import hashlib
 import logging
 import napalm
-from netmiko import FileTransfer
+from netmiko import FileTransfer, SCPConn
 import os
 import re
+import scp
 from time import sleep
 from tqdm import tqdm
 import yaml
@@ -757,15 +758,13 @@ class iosfw(object):
 
     def request_scp_transfer(self):
         """ Begins SCP file transfer with progress """
-        import scp
         self.ensure_scp()
+        self._init_transfer()
+        source = self.upgrade_image_src_path
+        dest = self.upgrade_image_dest_path
         ssh_connect_params = self.ft.ssh_ctl_chan._connect_params_dict()
         self.ft.scp_conn = self.ft.ssh_ctl_chan._build_ssh_client()
         self.ft.scp_conn.connect(**ssh_connect_params)
-        if not self.ft:
-            self._init_transfer()
-        source = self.upgrade_image_src_path
-        dest = self.upgrade_image_dest_path
         with tqdm(unit='b', unit_scale=True, ascii=True) as t:
             self.progress = self._scp_tqdm(t)
             self.ft.scp_client = scp.SCPClient(
