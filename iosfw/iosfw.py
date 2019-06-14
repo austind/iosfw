@@ -98,7 +98,7 @@ class iosfw(object):
         self.upgrade_version = self.get_upgrade_version()
         self.running_version = self.get_running_version()
         self.upgrade_image_src_path = \
-            self._get_src_path(self.upgrade_image_name)
+            self._get_src_path(self.upgrade_image_name, local=True)
         self.upgrade_image_dest_path = \
             self._get_dest_path(self.upgrade_image_name)
         self.boot_image_path = self.get_boot_image()
@@ -690,7 +690,6 @@ class iosfw(object):
                 self.log.info("Removed old images.")
         elif 'Invalid input' in output:
             if self.old_images:
-                self.log.info("Removing old images...")
                 for image in self.old_images:
                     self.ensure_file_deleted(image)
         else:
