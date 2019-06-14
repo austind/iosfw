@@ -822,18 +822,21 @@ class iosfw(object):
         # running image. Don't proceed if deleting running image would
         # not result in enough free space.
         self.log.info("Checking free space...")
-        self.upgrade_space_available = self.ft.verify_space_available()
-        if self.upgrade_space_available:
+        if self.ft.verify_space_available():
             self.log.info("Found enough free space!")
         else:
             self.log.info("Not enough space.")
             if self.can_delete_old_images:
                 self.log.info("Removing old images...")
                 self.remove_old_images()
+                # Need to wait after deleting image before checking
+                # free space
+                sleep(5)
             if not self.ft.verify_space_available():
                 if self.can_delete_running_image:
                     self.log.info("Removing running image...")
                     self.delete_running_image()
+                    sleep(5)
                     if not self.ft.verify_space_available():
                         msg = "Still not enough space. Cannot continue."
                         raise ValueError(msg)
