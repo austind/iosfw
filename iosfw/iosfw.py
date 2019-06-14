@@ -857,7 +857,7 @@ class iosfw(object):
     def upgrade(self):
         """ Performs firmware upgrade """
         start_t = datetime.now()
-        start = start_t.strftime('%X %x')
+        start = start_t.strftime('%X %Y-%m-%d')
         if self.needs_upgrade and not self.firmware_installed:
             msg = "Starting upgrade on {} at {}...".format(self.hostname,
                                                            start)
@@ -876,7 +876,7 @@ class iosfw(object):
             else:
                 status = 'failed'
             end_t = datetime.now()
-            end = end_t.strftime('%X %x')
+            end = end_t.strftime('%X %Y-%m-%d')
             msg = "Upgrade on {} {} at {}".format(self.hostname,
                                                   status,
                                                   end)
