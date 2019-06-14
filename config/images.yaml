@@ -1,7 +1,7 @@
 c2960x-universalk9-tar.152-4.E8.tar:
     md5: e0207f1709cf04f3461b012bf4fdd04f
     models:
-        - WS-C2960X-48TS
+        - WS-C2960X-48TS-L
         - WS-C2960X-48FPD-L
 
 c3550-ipbasek9-mz.122-44.SE6.bin:
