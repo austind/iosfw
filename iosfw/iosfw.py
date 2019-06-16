@@ -15,9 +15,9 @@ import yaml
 
 """ An API built upon NAPALM and Netmiko to manage Cisco IOS firmware. """
 
-# TODO: Feature to disable SSH timeouts during upgrade
-# TODO: Feature to serve FTP directly from iosfw
-# TODO: Feature to fix clock/NTP as needed
+# TODO: Disable SSH timeouts during upgrade
+# TODO: Serve FTP directly from iosfw
+# TODO: Fix clock/NTP as needed
 
 class iosfw(object):
     def __init__(self, hostname=None, username=None, password=None,
@@ -217,7 +217,7 @@ class iosfw(object):
     def _get_src_path(self, file_name=None, local=False):
         """ Returns full source file path """
         proto = self.config['transfer_proto']
-        un = self.config['transfer_username']
+        un = self.config['transfer_username'] or ''
         pw = self.config['transfer_password'] or ''
         path = self.config['transfer_path']
         src = self.config['transfer_source']
@@ -292,7 +292,6 @@ class iosfw(object):
         regex = r'[Kk]9'
         set1 = re.sub(regex, '', self.running_image_feature_set)
         set2 = re.sub(regex, '', file_name)
-
         return set1 == set2
 
     def _scp_tqdm(self, t):
@@ -555,8 +554,7 @@ class iosfw(object):
                 return True
             else:
                 return False
-        elif version in self.boot_image_path and \
-                version in files:
+        elif version in self.boot_image_path and version in files:
             return True
         else:
             return False
@@ -674,8 +672,7 @@ class iosfw(object):
 
     def ensure_reload_scheduled(self):
         """ Schedules a reload, if not already scheduled. """
-        scheduled = self.check_reload_scheduled()
-        if not scheduled:
+        if not self.check_reload_scheduled()
             self.log.info("Scheduling reload...")
             scheduled = self.schedule_reload()
         self.log.info("Reload scheduled for {} ({} away)".format(
@@ -713,7 +710,7 @@ class iosfw(object):
         cmd = 'request platform software package clean switch all'
         output = self.device.send_command(cmd, expect_string=r'(proceed|\#)')
         self.log.debug(output)
-        if 'Nothing to delete' in output or 'Nothing to clean' in output:
+        if 'Nothing to ' in output:
             self.log.info("Found no old images to remove.")
         elif 'proceed' in output:
             self.log.debug("Proceeding with package clean...")
@@ -800,7 +797,8 @@ class iosfw(object):
             self.upgrade_success = True
             self.log.info("Install successful!")
         else:
-            msg = "Unexpected output from request_install()"
+            msg = "Unexpected output from request_install():\n" \
+                  "{}".format(output)
             raise ValueError(msg)
 
     def ensure_install(self):
@@ -823,7 +821,8 @@ class iosfw(object):
         # not result in enough free space.
         self.log.info("Checking free space...")
         self.upgrade_file_size = os.stat(self.upgrade_image_src_path).st_size
-        # Estimate 10% compression overhead
+        # Estimate 10% decompression overhead
+        # TODO: Can we determine the actual compression ratio?
         comp_overhead = self.upgrade_file_size * 1.1
         if self.ft.remote_space_available() >= comp_overhead:
             self.log.info("Found enough free space!")
