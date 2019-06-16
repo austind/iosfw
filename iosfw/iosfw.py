@@ -822,7 +822,10 @@ class iosfw(object):
         # running image. Don't proceed if deleting running image would
         # not result in enough free space.
         self.log.info("Checking free space...")
-        if self.ft.verify_space_available():
+        self.upgrade_file_size = os.stat(self.upgrade_image_src_path).st_size
+        # Estimate 10% compression overhead
+        comp_overhead = self.upgrade_file_size * 1.1
+        if self.ft.remote_space_available() >= comp_overhead:
             self.log.info("Found enough free space!")
         else:
             self.log.info("Not enough space.")
