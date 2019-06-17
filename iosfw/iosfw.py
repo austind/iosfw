@@ -9,6 +9,7 @@ from netmiko import FileTransfer
 import os
 import re
 import scp
+import struct
 from time import sleep
 from tqdm import tqdm
 import yaml
@@ -165,7 +166,12 @@ class iosfw(object):
             self.log_upgrade_state()
 
     def __del__(self):
-        self.napalm.__del__()
+        # Proxied SSH connections generate a harmless ProcessLookupError
+        # on exit
+        try:
+            self.napalm.__del__()
+        except ProcessLookupError:
+            pass
 
     def _get_upgrade_cmd(self):
         """ Returns a command string for auto-upgrade, if supported """
@@ -342,7 +348,12 @@ class iosfw(object):
 
     def close(self):
         """ Closes all connections to device and logs """
-        self.napalm.close()
+        # Proxied SSH connections generate a harmless ProcessLookupError
+        # on exit
+        try:
+            self.napalm.close()
+        except ProcessLookupError:
+            pass
         handlers = self.log.handlers[:]
         for h in handlers:
             h.close()
@@ -861,7 +872,6 @@ class iosfw(object):
         self.log.info("Checking free space...")
         self.upgrade_file_size = os.stat(self.upgrade_image_src_path).st_size
         # Estimate 10% decompression overhead
-        # TODO: Can we determine the actual compression ratio?
         comp_overhead = self.upgrade_file_size * 1.1
         if self.ft.remote_space_available() >= comp_overhead:
             self.log.info("Found enough free space!")
