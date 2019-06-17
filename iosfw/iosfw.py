@@ -260,7 +260,7 @@ class iosfw(object):
         """ Reads and parses YAML file """
         with open(file_name, 'r') as f:
             file_contents = f.read()
-            parsed_yaml = yaml.load(file_contents)
+            parsed_yaml = yaml.load(file_contents, Loader=yaml.FullLoader)
         return parsed_yaml
 
     def _file_md5(self, file_name):
