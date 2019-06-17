@@ -17,7 +17,10 @@ import yaml
 
 # TODO: Disable SSH timeouts during upgrade
 # TODO: Serve FTP directly from iosfw
+# TODO: Fix SCP from iosfw
 # TODO: Fix clock/NTP as needed
+# TODO: Handle exceptions in connection open/close
+# TODO: Reorganize __init__() into methods
 
 
 class iosfw(object):
@@ -939,7 +942,7 @@ class iosfw(object):
         start_t = datetime.now()
         start = start_t.strftime('%X %Y-%m-%d')
         if self.needs_upgrade and not self.firmware_installed:
-            self.log.info("Starting upgrade on {}"
+            self.log.info("Starting upgrade on {} "
                           "at {}...".format(self.hostname, start))
             if self.upgrade_method == 'manual':
                 self.ensure_image_state()
