@@ -5,7 +5,7 @@ import getpass
 import hashlib
 import logging
 import napalm
-from netmiko import FileTransfer, SCPConn
+from netmiko import FileTransfer
 import os
 import re
 import scp
@@ -18,6 +18,7 @@ import yaml
 # TODO: Disable SSH timeouts during upgrade
 # TODO: Serve FTP directly from iosfw
 # TODO: Fix clock/NTP as needed
+
 
 class iosfw(object):
     def __init__(self, hostname=None, username=None, password=None,
@@ -94,7 +95,6 @@ class iosfw(object):
         self.upgrade_image_exists = False
         self.upgrade_image_valid = False
         self.upgrade_space_available = False
-        self.upgrade_success = False
         self.transfer_proto = self.config['transfer_proto']
         self.transfer_source = self.config['transfer_source']
         self.running_image_path = self.get_running_image()
@@ -270,16 +270,24 @@ class iosfw(object):
         elif 'Directory of' in output:
             return True
         else:
-            msg = "Unexpected output from _check_remote_file_exists(): \n" \
-                  "{}".format(output)
-            raise ValueError(msg)
+            self.log.critical("Unexpected output from "
+                              "_check_remote_file_exists(): \n"
+                              "{}".format(output))
+            return False
 
     def _get_image_feature_set(self, file_name):
         """ Parses the feature set string from an IOS file name
 
             e.g.: ipbasek9, universalk9, ipservicesk9
         """
-        return re.split(r'[-\.]', file_name)[1]
+        split = re.split(r'[-\.]', file_name)
+        if split:
+            if len(split) > 1:
+                return split[1]
+            else:
+                return False
+        else:
+            return False
 
     def _check_image_feature_set(self, file_name):
         """ Checks if a given image's feature set matches the running
@@ -309,7 +317,13 @@ class iosfw(object):
     def _write_config(self):
         """ Writes running configuration to NVRAM """
         cmd = 'write memory'
-        self.device.send_command_expect(cmd)
+        output = self.device.send_command_expect(cmd)
+        if 'OK' in output:
+            return True
+        else:
+            self.log.warning("Unexpected output from `write memory`: \n"
+                             "{}".format(output))
+            return False
 
     def _send_write_config_set(self, config_set):
         """ Sends configuration set to device and writes to NVRAM """
@@ -318,9 +332,10 @@ class iosfw(object):
             self._write_config()
             return True
         else:
-            msg = "Device reports invalid configuration commands.\n" \
-                  "Commands: {}\nOutput: {}\n".format(config_set, output)
-            raise ValueError(msg)
+            self.log.critical("Device reports invalid configuration "
+                              "commands.\nCommands: {}\nOutput: "
+                              "{}\n".format(config_set, output))
+            return False
 
     def close(self):
         """ Closes all connections to device and logs """
@@ -358,14 +373,16 @@ class iosfw(object):
                               "\nConfig MD5: {}\n".format(file_name,
                                                           attrs['md5'],
                                                           upgrade_image_md5)
-                        raise ValueError(msg)
+                        self.log.critical(msg)
+                        return False
                 else:
-                    msg = "Image file does not exist: " \
-                          "{}".format(upgrade_image_path)
-                    raise ValueError(msg)
-        msg = "Could not find upgrade image for model " \
-              "{} in image file {}.".format(self.model, self.image_file)
-        raise ValueError(msg)
+                    self.log.critical("Image file does not exist: "
+                                      "{}".format(upgrade_image_path))
+                    return False
+        self.log.critical("Could not find upgrade image for model "
+                          "{} in image file "
+                          "{}.".format(self.model, self.image_file))
+        return False
 
     def _get_basename(self, file_path):
         """ Returns a file name from a file path
@@ -418,6 +435,8 @@ class iosfw(object):
         match = re.search(pattern, self.os_version)
         if match:
             return match.group(1)
+        else:
+            return False
 
     def get_running_image(self):
         """ Returns the remote path of the image running in memory """
@@ -427,15 +446,14 @@ class iosfw(object):
         if search_string in output:
             return output.replace(search_string, '').replace('"', '')
         else:
-            msg = "Could not find running image. " \
-                  "Last output:\n{}".format(output)
-            raise ValueError(msg)
+            self.log.critical("Could not find running image. "
+                              "Last output:\n{}".format(output))
+            return False
 
     def get_boot_image(self):
         """ Returns the remote path of the image used on next reload """
         cmd = 'show boot | include BOOT'
         output = self.device.send_command(cmd)
-        # TODO: Better validation here
         return output.split(': ')[-1].strip()
 
     def get_old_images(self):
@@ -480,16 +498,16 @@ class iosfw(object):
         self.log.info("Checking boot image...")
         current_boot_image_path = self.get_boot_image()
         if current_boot_image_path != new_boot_image_path:
-            msg = "Setting boot image to {}...".format(new_boot_image_path)
-            self.log.info(msg)
+            self.log.info("Setting boot image to "
+                          "{}...".format(new_boot_image_path))
             if self.set_boot_image(new_boot_image_path):
                 confirm = self.get_boot_image()
                 if confirm == new_boot_image_path:
-                    msg = "Success! New boot image set to {}.".format(confirm)
-                    self.log.info(msg)
+                    self.log.info("Success! New boot image set to "
+                                  "{}.".format(confirm))
         else:
-            msg = "Boot image already set to {}.".format(new_boot_image_path)
-            self.log.info(msg)
+            self.log.info("Boot image already set to "
+                          "{}.".format(new_boot_image_path))
 
     def check_scp(self):
         """ Checks if SCP is enabled """
@@ -510,12 +528,13 @@ class iosfw(object):
                 output += self.device.send_command_expect('write memory')
                 return True
             else:
-                raise ValueError("Problem fixing SCP config. Last output: "
-                                 "\n{}".format(output))
+                self.log.critical("Problem fixing SCP config. Last output: "
+                                  "\n{}".format(output))
+                return False
         else:
-            msg = "No 'fix_scp' values found in {}. Cannot proceed.".format(
-                   self.config_file)
-            raise ValueError(msg)
+            self.log.critical("No 'fix_scp' values found in {}. "
+                              "Cannot proceed.".format(self.config_file))
+            return False
 
     def ensure_scp(self):
         """ Enables SCP if it is not already running properly. """
@@ -596,8 +615,9 @@ class iosfw(object):
         elif 'No reload is scheduled' in output:
             return True
         else:
-            msg = "Unexpected output from `{}`:\n{}".format(cmd, output)
-            raise ValueError(msg)
+            self.log.critical("Unexpected output from `{}`:"
+                              "\n{}".format(cmd, output))
+            return False
 
     def schedule_reload(self, reload_at=None, reload_in=None,
                         save_modified_config=True):
@@ -634,15 +654,17 @@ class iosfw(object):
             if re.match(reload_at_pattern, reload_at):
                 cmd = 'reload at {}'.format(reload_at)
             else:
-                raise ValueError("reload_at must be 'hh:mm' or "
-                                 "'h:mm' ('{}' given)".format(reload_at))
+                self.log.critical("reload_at must be 'hh:mm' or "
+                                  "'h:mm' ('{}' given)".format(reload_at))
+                return False
         if reload_in:
             reload_in = str(reload_in).strip()
             if re.match(reload_in_pattern, reload_in):
                 cmd = 'reload in {}'.format(reload_in)
             else:
-                raise ValueError("reload_in must be 'mmm' or 'hhh:mm' "
-                                 "('{}' given)".format(reload_in))
+                self.log.critical("reload_in must be 'mmm' or 'hhh:mm' "
+                                  "('{}' given)".format(reload_in))
+                return False
 
         # Schedule the reload
         self._ensure_enable_not_config()
@@ -659,8 +681,9 @@ class iosfw(object):
         if 'Proceed' in output:
             output += self.device.send_command_timing("\n")
         else:
-            msg = "Unexpected output from `{}`:\n{}".format(cmd, output)
-            raise ValueError(msg)
+            self.log.critical("Unexpected output from `{}`:"
+                              "\n{}".format(cmd, output))
+            return False
         check_reload_scheduled = self.check_reload_scheduled()
         if check_reload_scheduled:
             return check_reload_scheduled
@@ -668,7 +691,8 @@ class iosfw(object):
             msg = "Tried to schedule reload with `{}`, " \
                   "but check_reload_scheduled() failed. " \
                   "Output:\n{}".format(cmd, output)
-            raise ValueError(msg)
+            self.log.critical(msg)
+            return False
 
     def ensure_reload_scheduled(self):
         """ Schedules a reload, if not already scheduled. """
@@ -682,9 +706,16 @@ class iosfw(object):
     def _delete_file(self, file_name):
         """ Deletes a remote file from device """
         cmd = 'del /recursive /force {}'.format(file_name)
-        self.device.send_command_timing(cmd)
+        output = self.device.send_command_timing(cmd)
+        # Successful command returns no output
+        if output:
+            self.log.critical("Unexpected output from `del`: \n"
+                              "{}".format(output))
+            return False
+        else:
+            return True
 
-    def ensure_file_deleted(self, file_name, delete_path=True):
+    def ensure_file_removed(self, file_name, delete_path=True):
         """ Deletes a remote file from device only if it exists.
             Optionally deletes the full path (any parent folders).
 
@@ -692,17 +723,17 @@ class iosfw(object):
         if delete_path:
             path = self._get_path(file_name)
             if path != self.config['dest_filesystem']:
-                self.log.info("Deleting {}...".format(path))
-                self._delete_file(path)
+                self.log.info("Removing {}...".format(path))
+                return self._delete_file(path)
             else:
-                self.log.info("Deleting {}...".format(file_name))
-                self._delete_file(file_name)
+                self.log.info("Removing {}...".format(file_name))
+                return self._delete_file(file_name)
         else:
-            self._delete_file(file_name)
+            return self._delete_file(file_name)
 
     def delete_running_image(self):
         """ Deletes currently running image, including folder """
-        self.ensure_file_deleted(self.running_image_path)
+        self.ensure_file_removed(self.running_image_path)
         self.log.info("Running image deleted.")
 
     def remove_old_images(self):
@@ -712,20 +743,27 @@ class iosfw(object):
         self.log.debug(output)
         if 'Nothing to ' in output:
             self.log.info("Found no old images to remove.")
+            return True
         elif 'proceed' in output:
             self.log.debug("Proceeding with package clean...")
             output += self.device.send_command_timing("y")
             if 'Files deleted' in output:
                 self.log.info("Removed old images.")
+                return True
+            else:
+                self.log.warning("Unexpected output from remove_old_images():"
+                                 "\n{}".format(output))
+                return False
         elif 'Invalid input' in output:
             if self.old_images:
                 for image in self.old_images:
                     if self._check_remote_file_exists(image):
-                        self.ensure_file_deleted(image)
+                        if self.ensure_file_removed(image):
+                            self.log.info("Removed successfully.")
         else:
-            msg = "Unexpected output from remove_old_images():\n" \
-                  "{}".format(output)
-            raise ValueError(msg)
+            self.log.critical("Unexpected output from remove_old_images():\n"
+                              "{}".format(output))
+            return False
 
     def _init_transfer(self, src_file=None, dest_file=None):
         """ Sets up file transfer session.
@@ -782,10 +820,9 @@ class iosfw(object):
         """ Requests automated upgrade """
         cmd = self.upgrade_cmd
         self.log.info("Installing new firmware...")
-        self.log.debug(cmd)
-        msg = "NOTE: No status updates possible during install, " \
-              "which may take 10 minutes or longer."
-        self.log.info(msg)
+        self.log.debug("Upgrade command: {}".format(cmd))
+        self.log.info("NOTE: No status updates possible during install, "
+                      "which may take 10 minutes or longer.")
         output = self.device.send_command(cmd, delay_factor=100)
         self.log.debug(output)
         if 'Error' in output:
@@ -793,32 +830,31 @@ class iosfw(object):
             for line in output.split("\n"):
                 if 'Error' in line:
                     self.log.critical(line)
+            return False
         elif "All software images installed" in output:
-            self.upgrade_success = True
             self.log.info("Install successful!")
+            return True
         else:
-            msg = "Unexpected output from request_install():\n" \
-                  "{}".format(output)
-            raise ValueError(msg)
+            self.log.critical("Unexpected output from request_install():\n"
+                              "{}".format(output))
+            return False
 
     def ensure_install(self):
         """ Checks if firmware install is necessary, requesting if so """
         src_file = self._get_src_path(local=True)
         self._init_transfer(src_file)
         if not self.firmware_installed:
-            self.ensure_free_space()
-            if self.transfer_source == 'localhost':
-                self.request_transfer()
-            self.request_install()
+            if self.ensure_free_space():
+                if self.transfer_source == 'localhost':
+                    if self.request_transfer():
+                        self.request_install()
+                return self.request_install()
         else:
             self.log.info("New firmware already installed!")
-            self.upgrade_success = True
+            return True
 
     def ensure_free_space(self):
         """ Checks for available free space, clearing if possible """
-        # TODO: Anticipate how much space we can reclaim by deleting
-        # running image. Don't proceed if deleting running image would
-        # not result in enough free space.
         self.log.info("Checking free space...")
         self.upgrade_file_size = os.stat(self.upgrade_image_src_path).st_size
         # Estimate 10% decompression overhead
@@ -826,25 +862,30 @@ class iosfw(object):
         comp_overhead = self.upgrade_file_size * 1.1
         if self.ft.remote_space_available() >= comp_overhead:
             self.log.info("Found enough free space!")
+            return True
         else:
             self.log.info("Not enough space.")
             if self.can_delete_old_images:
                 self.log.info("Removing old images...")
                 self.remove_old_images()
                 # Need to wait after deleting image before checking
-                # free space
+                # free space, or we get an exception
                 sleep(5)
             if not self.ft.verify_space_available():
                 if self.can_delete_running_image:
                     self.log.info("Removing running image...")
                     self.delete_running_image()
                     sleep(5)
-                    if not self.ft.verify_space_available():
-                        msg = "Still not enough space. Cannot continue."
-                        raise ValueError(msg)
+                    if self.ft.verify_space_available():
+                        return True
+                    else:
+                        self.log.critical("Still not enough space."
+                                          "Cannot continue.")
+                        return False
                 else:
-                    msg = "Still not enough space. Cannot continue."
-                    raise ValueError(msg)
+                    self.log.critical("Still not enough space."
+                                      "Cannot continue.")
+                    return False
 
     def copy_validate_image(self):
         """ Copies and validates image file """
@@ -884,42 +925,39 @@ class iosfw(object):
     def ensure_old_image_removal(self):
         """ Deletes old images if requested """
         if self.config['delete_old_images'] == 'always':
-            self.remove_old_images()
+            return self.remove_old_images()
 
     def ensure_running_image_removal(self):
         """ Removes running image if requested """
         if self.config['delete_running_image'] == 'always':
             if self._check_remote_file_exists(self.running_image_path):
                 self.log.info("Removing running image...")
-                self.delete_running_image()
+                return self.delete_running_image()
 
     def upgrade(self):
         """ Performs firmware upgrade """
         start_t = datetime.now()
         start = start_t.strftime('%X %Y-%m-%d')
         if self.needs_upgrade and not self.firmware_installed:
-            msg = "Starting upgrade on {} at {}...".format(self.hostname,
-                                                           start)
-            self.log.info(msg)
+            self.log.info("Starting upgrade on {}"
+                          "at {}...".format(self.hostname, start))
             if self.upgrade_method == 'manual':
                 self.ensure_image_state()
                 self.ensure_boot_image()
             else:
-                self.ensure_install()
-            if self.upgrade_success:
-                self.refresh_upgrade_state()
-                self.ensure_old_image_removal()
-                self.ensure_running_image_removal()
-                self.ensure_reload_scheduled()
-                status = 'completed'
-            else:
-                status = 'failed'
+                if self.ensure_install():
+                    self.refresh_upgrade_state()
+                    self.ensure_old_image_removal()
+                    self.ensure_running_image_removal()
+                    self.ensure_reload_scheduled()
+                    status = 'completed'
+                else:
+                    status = 'failed'
             end_t = datetime.now()
             end = end_t.strftime('%X %Y-%m-%d')
-            msg = "Upgrade on {} {} at {}".format(self.hostname,
-                                                  status,
-                                                  end)
-            self.log.info(msg)
+            self.log.info("Upgrade on {} {} at {}".format(self.hostname,
+                                                          status,
+                                                          end))
         elif self.needs_reload and not self.reload_scheduled:
             self.ensure_reload_scheduled()
         else:
