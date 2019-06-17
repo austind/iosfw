@@ -672,7 +672,7 @@ class iosfw(object):
 
     def ensure_reload_scheduled(self):
         """ Schedules a reload, if not already scheduled. """
-        if not self.check_reload_scheduled()
+        if not self.check_reload_scheduled():
             self.log.info("Scheduling reload...")
             scheduled = self.schedule_reload()
         self.log.info("Reload scheduled for {} ({} away)".format(
