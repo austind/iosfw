@@ -175,6 +175,7 @@ class iosfw(object):
 
     def _get_upgrade_cmd(self):
         """ Returns a command string for auto-upgrade, if supported """
+        flags = ' '
         image_src = self._get_src_path()
         image_dest = self._get_dest_path()
         if self.transfer_source == 'localhost':
@@ -184,13 +185,16 @@ class iosfw(object):
         cmds = [
             'request',
             'software',
-            'archive',
+            'archive download-sw',
             'copy',
         ]
         for cmd in cmds:
             output = self.device.send_command(cmd + ' ?')
-            if 'Unknown' not in output and 'Unrecognized' not in output:
+            if 'Incomplete command' in output:
                 method = cmd
+                if 'allow-feature-upgrade' in output and not \
+                        self.config['match_feature_set']:
+                    flags += '/allow-feature-upgrade '
                 break
         if method == 'request':
             return 'request platform software package install switch all ' \
@@ -198,8 +202,7 @@ class iosfw(object):
         if method == 'software':
             return 'software install ' \
                    'file {} new on-reboot'.format(img)
-        if method == 'archive':
-            flags = ' '
+        if method == 'archive download-sw':
             if self.config['delete_running_image'] == 'never':
                 flags += '/safe /leave-old-sw '
             else:
@@ -845,7 +848,8 @@ class iosfw(object):
                 if 'Error' in line:
                     self.log.critical(line)
             return False
-        elif "All software images installed" in output:
+        elif 'All software images installed' in output or \
+                'SUCCESS' in output:
             self.log.info("Install successful!")
             return True
         else:
