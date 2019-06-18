@@ -184,7 +184,7 @@ class iosfw(object):
             img = image_src
         cmds = [
             'request',
-            'software',
+            'software install',
             'archive download-sw',
             'copy',
         ]
@@ -199,7 +199,7 @@ class iosfw(object):
         if method == 'request':
             return 'request platform software package install switch all ' \
                    'file {} new auto-copy'.format(img)
-        if method == 'software':
+        if method == 'software install':
             return 'software install ' \
                    'file {} new on-reboot'.format(img)
         if method == 'archive download-sw':
@@ -419,28 +419,41 @@ class iosfw(object):
 
     def _get_version_from_file(self, file_name, raw=False):
         """ Returns a version string from a file name """
-        if 'SPA' in file_name:
-            # IOS XE
-            pattern = r'(\d+\.\d+\.\d+)\.SPA'
-            match = re.search(pattern, file_name)
-            if match:
-                if raw:
-                    return match.group(1)
-                else:
-                    return re.sub(r'\.0', '.', match.group(1))
-        else:
-            # IOS
-            pattern = r'(\d{3})-(\d+)\.(\w+)'
-            match = re.search(pattern, file_name)
-            if match:
-                if raw:
-                    return match.group(0)
-                else:
-                    train = '{}.{}'.format(match.group(1)[:2],
-                                           match.group(1)[2:])
-                    throttle = match.group(2)
-                    rebuild = match.group(3)
-                    return '{}({}){}'.format(train, throttle, rebuild)
+        # c2900-universalk9-mz.SPA.157-3.M4b.bin
+        # c2960s-universalk9-tar.152-2.E9.tar
+        # c2960x-universalk9-tar.152-4.E8.tar
+        # c3550-ipbase-tar.122-44.SE6.tar
+        # c3550-ipbasek9-mz.122-44.SE6.bin
+        # c3560-ipbasek9-mz.122-55.SE12.bin
+        # c3560-ipbasek9-tar.122-55.SE12.tar
+        # c3560e-ipbasek9-mz.150-2.SE11.bin
+        # c3560e-ipbasek9-tar.150-2.SE11.tar
+        # c3560e-universalk9-mz.152-4.E8.bin
+        # c3560e-universalk9-tar.152-4.E8.tar
+        # c3750-ipbaselmk9-tar.122-55.SE12.tar
+        # c3750e-ipbasek9-mz.150-2.SE11.bin
+        # c3750e-universalk9-tar.152-4.E8.tar
+        # cat3k_caa-universalk9.16.03.08.SPA.bin
+        # cat9k_iosxe.16.11.01.SPA.bin
+        pattern = r'(\d+\.\d+\.\d+)\.SPA'
+        match = re.search(pattern, file_name)
+        if match:
+            if raw:
+                return match.group(1)
+            else:
+                return re.sub(r'\.0', '.', match.group(1))
+        
+        pattern = r'(\d{3})-(\d+)\.(\w+)'
+        match = re.search(pattern, file_name)
+        if match:
+            if raw:
+                return match.group(0)
+            else:
+                train = '{}.{}'.format(match.group(1)[:2],
+                                       match.group(1)[2:])
+                throttle = match.group(2)
+                rebuild = match.group(3)
+                return '{}({}){}'.format(train, throttle, rebuild)
 
     def get_upgrade_version(self, raw=False):
         """ Parses image name to return IOS version string """
@@ -471,10 +484,26 @@ class iosfw(object):
         """ Returns the remote path of the image used on next reload """
         cmd = 'show boot | include BOOT'
         output = self.device.send_command(cmd)
-        return output.split(': ')[-1].strip()
+        if 'Invalid input' in output:
+            self.log.debug("Device does not support `show boot`. "
+                           "Checking running config...")
+            cmd = 'show run | i boot'
+            output = self.device.send_command(cmd)
+            self.log.debug("Output from `{}`: \n"
+                           "{}".format(cmd, output))
+            if 'boot system' in output:
+                match = re.search(r'boot system ([^\n]+)\n', output)
+                self.log.debug("Found boot image {}".format(match.group(1)))
+                return match.group(1)
+            else:
+                self.log.debug("No `boot system` directives found in config. "
+                               "Inferring first image in dest_fs.")
+                return self.get_installed_images()[0]
+        else:
+            return output.split(': ')[-1].strip()
 
-    def get_old_images(self):
-        """ Checks dest_filesystem for old image files """
+    def get_installed_images(self):
+        """ Returns list of images installed on dest_fs """
         results = []
         dest_fs = self.config['dest_filesystem']
         cmd = 'dir {}'.format(dest_fs)
@@ -483,13 +512,23 @@ class iosfw(object):
             file_name = re.split(r'\s+', line)[-1]
             # c3560e-universalk9-mz.152-4.E8
             # c3560-ipbasek9-mz.122-55.SE12
-            pattern = r'\w+-\w+-\w+.\d+-\w+\.\w+'
+            # c2900-universalk9-mz.SPA.152-4.M4.bin
+            #pattern = r'\w+-\w+-\w+.\d+-\w+\.\w+'
+            pattern = r'\d+-\w+\.\w+'
             match = re.search(pattern, file_name)
             if match:
-                match_version = self._get_version_from_file(match.group(0))
-                if match_version != self.running_version and \
-                   match_version != self.upgrade_version:
-                    results.append('{}/{}'.format(dest_fs, file_name))
+                results.append('{}/{}'.format(dest_fs, file_name))
+        return results        
+
+    def get_old_images(self):
+        """ Checks dest_filesystem for old image files """
+        results = []
+        installed_images = self.get_installed_images()
+        for image in installed_images:
+            img_version = self._get_version_from_file(image)
+            if img_version != self.running_version and \
+                    img_version != self.upgrade_version:
+                results.append('{}/{}'.format(dest_fs, file_name))
         return results
 
     def set_boot_image(self, new_boot_image_path=None):
@@ -522,9 +561,11 @@ class iosfw(object):
                 if confirm == new_boot_image_path:
                     self.log.info("Success! New boot image set to "
                                   "{}.".format(confirm))
+                    return True
         else:
             self.log.info("Boot image already set to "
                           "{}.".format(new_boot_image_path))
+            return True
 
     def check_scp(self):
         """ Checks if SCP is enabled """
@@ -552,6 +593,23 @@ class iosfw(object):
             self.log.critical("No 'fix_scp' values found in {}. "
                               "Cannot proceed.".format(self.config_file))
             return False
+
+    def fix_ntp(self):
+        """ Fixes NTP if possible """
+        fix_ntp_cmds = self.config['fix_ntp']
+        cmd = 'show run | i ntp'
+        ntp_config = self.device.send_command(cmd).split("\n")
+        null_ntp_cmds = []
+        for line in ntp_config:
+            null_ntp_cmds.append('no {}'.format(line))
+        self.log.debug("Removing existing NTP config: \n"
+                       "{}".format(null_ntp_cmds))
+        output = self.device.send_config_set(null_ntp_cmds)
+        self.log.debug("Output: \n{}".format(output))
+        self.log.debug("Sending new NTP config: \n"
+                       "{}".format(fix_ntp_cmds))
+        output += self.device.send_config_set(fix_ntp_cmds)
+        self.log.debug("Output: \n{}".format(output))
 
     def ensure_scp(self):
         """ Enables SCP if it is not already running properly. """
@@ -590,7 +648,7 @@ class iosfw(object):
                 return True
             else:
                 return False
-        elif version in self.boot_image_path and version in files:
+        if version in files:
             return True
         else:
             return False
@@ -687,6 +745,19 @@ class iosfw(object):
         self._ensure_enable_not_config()
         e = r'(Save|Proceed|\#)'
         output = self.device.send_command(cmd, expect_string=e)
+        if 'The date and time must be set first' in output:
+            self.log.debug("Clock not set.")
+            if self.config['fix_ntp']:
+                self.log.debug("Attempting NTP fix...")
+                self.fix_ntp()
+                self.log.debug("Waiting 30 seconds for NTP to sync...")
+                sleep(30)
+                return self.schedule_reload()
+            else:
+                self.log.critical("No fix_ntp parameters given. "
+                                  "Cannot continue with reload.")
+                return False
+            
         if 'Save?' in output:
             if save_modified_config:
                 response = 'yes'
@@ -830,32 +901,43 @@ class iosfw(object):
             self.request_scp_transfer()
         else:
             cmd = self.upgrade_cmd
-            self.log.info("Transferring image with: {}".format(cmd))
-            self.log.info(self.device.send_command(cmd, delay_factor=100))
+            self.log.debug("Transferring image with: {}".format(cmd))
+            output = self.device.send_command(cmd, expect_string=r'filename')
+            output += self.device.send_command("\n", delay_factor=100,
+                                               expect_string=r'copied')
+            self.device.find_prompt()
 
     def request_install(self):
         """ Requests automated upgrade """
         cmd = self.upgrade_cmd
         self.log.info("Installing new firmware...")
         self.log.debug("Upgrade command: {}".format(cmd))
-        self.log.info("NOTE: No status updates possible during install, "
-                      "which may take 10 minutes or longer.")
-        output = self.device.send_command(cmd, delay_factor=100)
-        self.log.debug(output)
-        if 'Error' in output:
-            self.log.critical("Install failed:")
-            for line in output.split("\n"):
-                if 'Error' in line:
-                    self.log.critical(line)
-            return False
-        elif 'All software images installed' in output or \
-                'SUCCESS' in output:
-            self.log.info("Install successful!")
-            return True
+        if self.upgrade_method == 'manual':
+            if self.copy_validate_image():
+                self.ensure_boot_image()
+                return True
+            else:
+                return False
         else:
-            self.log.critical("Unexpected output from request_install():\n"
-                              "{}".format(output))
-            return False
+            self.log.info("NOTE: No status updates possible during install, "
+                          "which may take 10 minutes or longer.")
+            output = self.device.send_command(cmd, delay_factor=100)
+            self.log.debug(output)
+            if 'Error' in output:
+                self.log.critical("Install failed:")
+                for line in output.split("\n"):
+                    if 'Error' in line:
+                        self.log.critical(line)
+                return False
+            elif 'All software images installed' in output or \
+                    'SUCCESS' in output:
+                self.log.info("Install successful!")
+                return True
+            else:
+                self.log.critical("Unexpected output from "
+                                  "request_install():\n"
+                                  "{}".format(output))
+                return False
 
     def ensure_install(self):
         """ Checks if firmware install is necessary, requesting if so """
@@ -913,12 +995,13 @@ class iosfw(object):
             self.log.info("Transfer complete! Verifying hash...")
             if self.ft.verify_file():
                 self.log.info("Hash verified!")
+                return True
             else:
-                msg = "Failed hash check after transfer. Can't continue."
-                raise ValueError(msg)
+                self.log.critical("Failed hash check after transfer. Can't continue.")
+                return False
         else:
-            msg = "Not enough space for upgrade image. Can't continue."
-            raise ValueError(msg)
+            self.log.critical("Not enough space for upgrade image. Can't continue.")
+            return False
 
     def ensure_image_state(self):
         """ If possible, transfers and verifies image on device """
@@ -931,13 +1014,14 @@ class iosfw(object):
             self.upgrade_image_valid = self.ft.verify_file()
             if self.upgrade_image_valid:
                 self.log.info("Hash verified!")
+                return True
             else:
                 self.log.warning("Failed hash check. Re-copying image.")
-                self.copy_validate_image()
+                return self.copy_validate_image()
         else:
             self.log.info("Not found.")
             self.ensure_free_space()
-            self.copy_validate_image()
+            return self.copy_validate_image()
 
     def ensure_old_image_removal(self):
         """ Deletes old images if requested """
@@ -958,18 +1042,14 @@ class iosfw(object):
         if self.needs_upgrade and not self.firmware_installed:
             self.log.info("Starting upgrade on {} "
                           "at {}...".format(self.hostname, start))
-            if self.upgrade_method == 'manual':
-                self.ensure_image_state()
-                self.ensure_boot_image()
+            if self.ensure_install():
+                self.refresh_upgrade_state()
+                self.ensure_old_image_removal()
+                self.ensure_running_image_removal()
+                self.ensure_reload_scheduled()
+                status = 'completed'
             else:
-                if self.ensure_install():
-                    self.refresh_upgrade_state()
-                    self.ensure_old_image_removal()
-                    self.ensure_running_image_removal()
-                    self.ensure_reload_scheduled()
-                    status = 'completed'
-                else:
-                    status = 'failed'
+                status = 'failed'
             end_t = datetime.now()
             end = end_t.strftime('%X %Y-%m-%d')
             self.log.info("Upgrade on {} {} at {}".format(self.hostname,

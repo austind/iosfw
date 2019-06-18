@@ -65,3 +65,8 @@ c2900-universalk9-mz.SPA.157-3.M4b.bin:
     md5: 15893d988e2999f5c96741c843492a1e
     models:
         - CISCO2921/K9
+        
+c800-universalk9-mz.SPA.156-3.M6a.bin:
+    md5: 94c8b56da7456124f817b61fa02974a5
+    models:
+        - C892FSP-K9
