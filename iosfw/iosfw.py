@@ -523,12 +523,13 @@ class iosfw(object):
     def get_old_images(self):
         """ Checks dest_filesystem for old image files """
         results = []
+        dest_fs = self.config['dest_filesystem']
         installed_images = self.get_installed_images()
         for image in installed_images:
             img_version = self._get_version_from_file(image)
             if img_version != self.running_version and \
                     img_version != self.upgrade_version:
-                results.append('{}/{}'.format(dest_fs, file_name))
+                results.append(image)
         return results
 
     def set_boot_image(self, new_boot_image_path=None):
@@ -834,7 +835,7 @@ class iosfw(object):
             return True
         elif 'proceed' in output:
             self.log.debug("Proceeding with package clean...")
-            output += self.device.send_command_timing("y")
+            output += self.device.send_command('y')
             if 'Files deleted' in output:
                 self.log.info("Removed old images.")
                 return True
@@ -964,17 +965,17 @@ class iosfw(object):
             return True
         else:
             self.log.info("Not enough space.")
-            if self.can_delete_old_images:
+            if self.old_images and self.can_delete_old_images:
                 self.log.info("Removing old images...")
                 self.remove_old_images()
                 # Need to wait after deleting image before checking
                 # free space, or we get an exception
-                sleep(5)
+                sleep(15)
             if not self.ft.verify_space_available():
                 if self.can_delete_running_image:
                     self.log.info("Removing running image...")
                     self.delete_running_image()
-                    sleep(5)
+                    sleep(15)
                     if self.ft.verify_space_available():
                         return True
                     else:
