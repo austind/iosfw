@@ -1,3 +1,4 @@
+---
 c2960s-universalk9-tar.152-2.E9.tar:
     md5: 66f500dc7da233da4c01f1856363cc2d
     models:
@@ -52,9 +53,15 @@ cat3k_caa-universalk9.16.03.08.SPA.bin:
     md5: c98d0b937945f30b3cd8f58702461b6f
     models:
         - WS-C3650-48FQ
+        - WS-C3650-48PQ
         - WS-C3650-48PD  
         - WS-C3650-48PD
         - WS-C3850-12S 
         - WS-C3850-24P 
         - WS-C3850-24XS
         - WS-C3850-48P
+        
+c2900-universalk9-mz.SPA.157-3.M4b.bin:
+    md5: 15893d988e2999f5c96741c843492a1e
+    models:
+        - CISCO2921/K9
