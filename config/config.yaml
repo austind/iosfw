@@ -122,7 +122,7 @@ reload_at: '00:00'
 #   - If dest_file_system does NOT have enough space for old and new
 #     images to coexist, old image will be deleted before copying new
 #     image.
-delete_running_image: 'always'
+delete_running_image: 'as_needed'
 
 # Conditions under which to delete old (not running) firmware images.
 #
@@ -153,3 +153,13 @@ fix_scp:
     - 'aaa authorization exec default local if-authenticated'
     - 'ip ssh version 2'
     - 'ip scp server enable'
+
+# If NTP is not configured, run these commands (in this order) to
+# hopefully fix it.
+fix_ntp:
+    - 'ntp authenticate'
+    - 'ntp authentication-key <key-id> md5 <passphrase>'
+    - 'ntp trusted-key <key-id>'
+    - 'ntp server <ntp-server> key <key-id>'
+    - 'clock timezone <timezone>'
+    - 'clock summer-time <timezone>'
