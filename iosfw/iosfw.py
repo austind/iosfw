@@ -1041,7 +1041,9 @@ class iosfw(object):
                 # Need to wait after deleting image before checking
                 # free space, or we get an exception
                 sleep(15)
-            if not self.ft.verify_space_available():
+            if self.ft.verify_space_available():
+                return True
+            else:
                 if self.can_delete_running_image:
                     self.log.info("Removing running image...")
                     self.delete_running_image()
