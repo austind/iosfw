@@ -329,7 +329,7 @@ class iosfw(object):
         """
         regex = r"[Kk]9"
         set1 = re.sub(regex, "", self.running_image_feature_set)
-        set2 = re.sub(regex, "", file_name)
+        set2 = re.sub(regex, "", self._get_image_feature_set(file_name))
         return set1 == set2
 
     def _scp_tqdm(self, t):
