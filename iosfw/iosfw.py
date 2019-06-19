@@ -144,7 +144,10 @@ class iosfw(object):
             self.can_delete_old_images = False
         self.log.info(
             "Connected to {} ({}) as {} via {}".format(
-                self.hostname, self.model, self.device.username, self.transport
+                self.hostname,
+                self.model,
+                self.device.username,
+                self.transport,
             )
         )
         self.log_upgrade_state()
@@ -185,7 +188,7 @@ class iosfw(object):
         # on exit
         try:
             self.napalm.__del__()
-        except OSError:
+        except OSError.ProcessLookupError:
             pass
 
     def _get_upgrade_cmd(self):
@@ -214,7 +217,7 @@ class iosfw(object):
                 "file {} new auto-copy".format(img)
             )
         if method == "software install":
-            return "software install " "file {} new on-reboot".format(img)
+            return "software install file {} new on-reboot".format(img)
         if method == "archive download-sw":
             if self.config["delete_running_image"] == "never":
                 flags += "/safe /leave-old-sw "
@@ -350,7 +353,8 @@ class iosfw(object):
             return True
         else:
             self.log.warning(
-                "Unexpected output from `write memory`: \n" "{}".format(output)
+                "Unexpected output from `write memory`: \n"
+                "{}".format(output)
             )
             return False
 
@@ -374,7 +378,7 @@ class iosfw(object):
         # on exit
         try:
             self.napalm.close()
-        except OSError:
+        except OSError.ProcessLookupError:
             pass
         handlers = self.log.handlers[:]
         for h in handlers:
@@ -517,7 +521,7 @@ class iosfw(object):
             )
             cmd = "show run | i boot"
             output = self.device.send_command(cmd)
-            self.log.debug("Output from `{}`: \n" "{}".format(cmd, output))
+            self.log.debug("Output from `{}`: \n{}".format(cmd, output))
             if "boot system" in output:
                 match = re.search(r"boot system ([^\n]+)\n", output)
                 self.log.debug("Found boot image {}".format(match.group(1)))
@@ -586,18 +590,18 @@ class iosfw(object):
         current_boot_image_path = self.get_boot_image()
         if current_boot_image_path != new_boot_image_path:
             self.log.info(
-                "Setting boot image to " "{}...".format(new_boot_image_path)
+                "Setting boot image to {}...".format(new_boot_image_path)
             )
             if self.set_boot_image(new_boot_image_path):
                 confirm = self.get_boot_image()
                 if confirm == new_boot_image_path:
                     self.log.info(
-                        "Success! New boot image set to " "{}.".format(confirm)
+                        "Success! New boot image set to {}.".format(confirm)
                     )
                     return True
         else:
             self.log.info(
-                "Boot image already set to " "{}.".format(new_boot_image_path)
+                "Boot image already set to {}.".format(new_boot_image_path)
             )
             return True
 
@@ -627,8 +631,9 @@ class iosfw(object):
                 return False
         else:
             self.log.critical(
-                "No 'fix_scp' values found in {}. "
-                "Cannot proceed.".format(self.config_file)
+                "No 'fix_scp' values found in {}. Cannot proceed.".format(
+                    self.config_file
+                )
             )
             return False
 
@@ -641,11 +646,11 @@ class iosfw(object):
         for line in ntp_config:
             null_ntp_cmds.append("no {}".format(line))
         self.log.debug(
-            "Removing existing NTP config: \n" "{}".format(null_ntp_cmds)
+            "Removing existing NTP config: \n{}".format(null_ntp_cmds)
         )
         output = self.device.send_config_set(null_ntp_cmds)
         self.log.debug("Output: \n{}".format(output))
-        self.log.debug("Sending new NTP config: \n" "{}".format(fix_ntp_cmds))
+        self.log.debug("Sending new NTP config: \n{}".format(fix_ntp_cmds))
         output += self.device.send_config_set(fix_ntp_cmds)
         self.log.debug("Output: \n{}".format(output))
 
@@ -851,7 +856,7 @@ class iosfw(object):
         # Successful command returns no output
         if output:
             self.log.critical(
-                "Unexpected output from `del`: \n" "{}".format(output)
+                "Unexpected output from `del`: \n{}".format(output)
             )
             return False
         else:
@@ -906,8 +911,9 @@ class iosfw(object):
                             self.log.info("Removed successfully.")
         else:
             self.log.critical(
-                "Unexpected output from remove_old_images():\n"
-                "{}".format(output)
+                "Unexpected output from remove_old_images():\n{}".format(
+                    output
+                )
             )
             return False
 
