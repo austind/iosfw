@@ -70,3 +70,9 @@ c800-universalk9-mz.SPA.156-3.M6a.bin:
     md5: 94c8b56da7456124f817b61fa02974a5
     models:
         - C892FSP-K9
+
+nxos.7.0.3.I7.6.bin:
+    md5: aea740774c1ef22585ac40f1134d3ed6
+    models:
+        - N9K-C93180YC-EX
+        - N3K-C3064TQ-10GT
