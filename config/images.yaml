@@ -76,3 +76,8 @@ nxos.7.0.3.I7.6.bin:
     models:
         - N9K-C93180YC-EX
         - N3K-C3064TQ-10GT
+        
+isr4300-universalk9.16.09.03.SPA.bin:
+    md5: 5553887dfc0633940a6004b78de0f9b9
+    models:
+        - ISR4331/K9
