@@ -16,11 +16,11 @@ import yaml
 """ An API built upon NAPALM and Netmiko to manage Cisco IOS firmware. """
 
 # TODO: Disable SSH timeouts during upgrade
-# TODO: Serve FTP directly from iosfw
 # TODO: Fix SCP from iosfw
 # TODO: Fix clock/NTP as needed
 # TODO: Handle exceptions in connection open/close
-# TODO: Reorganize __init__() into methods
+# TODO: Refactor __init__() into methods
+# TODO: Ensure reachability to transfer_source
 
 
 class iosfw(object):
@@ -840,9 +840,12 @@ class iosfw(object):
 
     def ensure_reload_scheduled(self):
         """ Schedules a reload, if not already scheduled. """
-        if not self.check_reload_scheduled():
+        scheduled = self.check_reload_scheduled()
+        if not scheduled:
             self.log.info("Scheduling reload...")
-            scheduled = self.schedule_reload()
+            return self.schedule_reload()
+        else:
+            return scheduled
         self.log.info(
             "Reload scheduled for {} ({} away)".format(
                 scheduled["absolute_time"], scheduled["relative_time"]
@@ -1040,14 +1043,14 @@ class iosfw(object):
                 self.remove_old_images()
                 # Need to wait after deleting image before checking
                 # free space, or we get an exception
-                sleep(15)
-            if self.ft.verify_space_available():
-                return True
+                sleep(30)
+                if self.ft.verify_space_available():
+                    return True
             else:
                 if self.can_delete_running_image:
                     self.log.info("Removing running image...")
                     self.delete_running_image()
-                    sleep(15)
+                    sleep(30)
                     if self.ft.verify_space_available():
                         return True
                     else:
