@@ -26,7 +26,24 @@ Requires:
 * napalm
 * tqdm
 
-**NOTE: Use at your own risk.** This is beta software in active development. It works well in my environment, but serious bugs are possible.
+Tested on:
+* Catalyst 3560
+* Catalyst 3560-X
+* Catalyst 3750
+* Catalyst 3750-X
+* Catalyst 2960-S
+* Catalyst 2960-X
+* Catalyst 3650
+* Catalyst 3850
+* ISR 2921
+* ISR 4331
+* C892FSP
+
+Not tested on:
+* Nexus 3k/9k
+* Catalyst 9k series
+
+**NOTE: Use at your own risk.** This is beta software in active development. It works well in my environment, but serious bugs are possible. See known issues below.
 
 ## Usage
 
@@ -68,9 +85,21 @@ Total time elapsed: 0:09:23.224298
 
 See [`example/batch_example.py`](https://github.com/austind/iosfw/blob/master/example/batch_example.py)
 
+## Known issues
+
+* During testing, Catalyst 3750-X models tested took unusually long to install. The install succeeded, but `iosfw` did not recognize install completion and eventually times out. This left them with properly upgrade IOS, but no scheduled reload.
+* Catalyst 3k series (3650 and 3850) with IOS running in BUNDLE mode (booted directly to the .bin file), will not succeed in upgrading with `request platform software package install`. Upgrading them requires a different manual process that is not yet implemented:
+    * Remove existing IOS with `del /force flash:/cat*.pkg`
+    * Remove existing packages.conf with `del /force flash:/packages.conf`
+    * Remove boot variables with `no boot system` in config mode
+    * Copy upgrade image with `copy <source> flash:`
+    * Install upgrade image with `request platform software package expand switch all file flash:/<file>`
+    * Set boot variable with `boot system flash:/<file>`
+    * Schedule reload with `reload at 00:00`
+* Currently, `iosfw` does not check to ensure `transfer_source` in `config.yaml` is reachable. If not reachable, the install command will fail, but not timeout for more than 30 minutes. Most commonly, `transfer_source` may not be reachable due to sending the requests out the incorrect interface. You can specify the source interface for TFTP and FTP transfers with `ip (ftp|tftp) source-interface <iface>` in config mode. Checking reachability and attempting an automated resolution is a feature on the roadmap.
+
 ## Notes
 
-* Tested on various versions of IOS 12.x upgrading to 12.x and 15.x, but YMMV.
 * Expect devices to take between 10 and 30 minutes to come back after reload, especially if upgrading from 12.x to 15.x, due to microcode updates.
 * The `iosfw` class exposes all of NAPALM's config parameters, and stores the NAPALM session under `self.napalm`, so you can use all of NAPALM's features easily.
 * Same goes for netmiko - stored as `self.device` - so you can send arbitrary commands with `iosfw.device.send_command('my arbitrary command')`
