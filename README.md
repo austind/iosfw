@@ -36,7 +36,6 @@ Tested on:
 * Catalyst 3650
 * Catalyst 3850
 * ISR 2921
-* ISR 4331
 * C892FSP
 
 Not tested on:

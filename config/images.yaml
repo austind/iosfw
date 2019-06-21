@@ -71,12 +71,14 @@ c800-universalk9-mz.SPA.156-3.M6a.bin:
     models:
         - C892FSP-K9
 
+# Not yet supported
 nxos.7.0.3.I7.6.bin:
     md5: aea740774c1ef22585ac40f1134d3ed6
     models:
         - N9K-C93180YC-EX
         - N3K-C3064TQ-10GT
-        
+
+# Not yet supported        
 isr4300-universalk9.16.09.03.SPA.bin:
     md5: 5553887dfc0633940a6004b78de0f9b9
     models:
