@@ -581,7 +581,7 @@ class iosfw(object):
             return output[-1]
 
     def disable_exec_timeout(self):
-        """ Disables line vty exec timeout """
+        """ Disables line vty exec-timeout """
         config_set = [
             'line vty 0 15',
             'no exec-timeout',
