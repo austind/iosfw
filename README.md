@@ -1,32 +1,37 @@
 # iosfw
 
+Automatic Cisco IOS firmware upgrades
+
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/python/black)
+
+Requires:
+* Python 3.6+
+* [netmiko](https://github.com/ktbyers/netmiko)
+* [napalm](https://github.com/napalm-automation/napalm)
+* [tqdm](https://github.com/tqdm/tqdm)
+
 ## Overview
 
-Automates the entire IOS firmware upgrade process:
+Automates the entire upgrade process:
 * Transfer the new image
 * Verify image integrity
-* Extract or install
+* Extract archive and/or install
 * Set boot parameters
 * Schedule reload
 
-Supports several upgrade methods, depending on running IOS version:
+Auto-detects best upgrade method available:
 * `archive download-sw`
 * `software install`
 * `request platform software package install`
-* Or if those fail, plain `copy` 
+* If those fail, plain `copy` followed by `set boot ...`
 
 Other features:
 * YAML-based config
-* Logs progress to console and/or file, with configurable verbosity
+* Log to console and/or file, with configurable verbosity
 * Works with ad-hoc upgrades (interactive) or batch jobs (non-interactive)
 
-Requires:
-* Python 3.x
-* netmiko
-* napalm
-* tqdm
-
-Tested on:
+Supported platforms:
+* Catalyst 3550
 * Catalyst 3560
 * Catalyst 3560-X
 * Catalyst 3750
@@ -38,17 +43,19 @@ Tested on:
 * ISR 2921
 * C892FSP
 
-Not tested on:
+Currently unsupported platforms:
 * Nexus 3k/9k
 * Catalyst 9k series
-* ISR 400
+* ISR 4300
 
-**NOTE: Use at your own risk.** This is beta software in active development. It works well in my environment, but serious bugs are possible. See known issues below.
+**NOTE: Use at your own risk.** This is beta software in active development. It works well in my environment, but serious bugs are possible. Test thoroughly in a lab environment, and see known issues below.
 
 ## Usage
 
 1. Review [`config/config.yaml`](https://github.com/austind/iosfw/blob/master/config/config.yaml) and [`config/images.yaml`](https://github.com/austind/iosfw/blob/master/config/images.yaml) and match them to your requirements. Defaults are sane enough for most environments, but don't take any chances :)
 1. Copy your IOS images defined in `images.yaml` to the `src_image_path` defined in `config.yaml`.
+
+As of 0.9.0, SCP image transfer directly from `iosfw` no longer works. Since SCP encryption slows transfer down with encryption overhead, I recommend setting up an FTP server on a separate host and configuring `config.yaml` accordingly.
 
 **Note:** Pay special attention if you have devices of the *same* model, but need *different* IOS images (e.g., ipbase vs ipservices). In that case, define both images in `images.yaml` and add the same model to their respective `models` lists. Then, change `match_feature_set` to `true` in `config.yaml`.
 
@@ -87,19 +94,34 @@ See [`example/batch_example.py`](https://github.com/austind/iosfw/blob/master/ex
 
 ## Known issues
 
-* During testing, Catalyst 3750-X models took almost 45 minutes to install. This will almost certainly exceed any configured SSH timeout, so be sure to set `disable_exec_timeout` in `config.yaml`.
 * Catalyst 3k series (3650 and 3850) with IOS running in BUNDLE mode (booted directly to the .bin file), will not succeed in upgrading with `request platform software package install`. Upgrading them requires a different manual process that is not yet implemented:
-    * Remove existing IOS with `del /force flash:/cat*.pkg`
-    * Remove existing packages.conf with `del /force flash:/packages.conf`
-    * Remove boot variables with `no boot system` in config mode
-    * Copy upgrade image with `copy <source> flash:`
-    * Install upgrade image with `request platform software package expand switch all file flash:/<file>`
-    * Set boot variable with `boot system flash:/<file>`
-    * Schedule reload with `reload at 00:00`
-* Currently, `iosfw` does not check to ensure `transfer_source` in `config.yaml` is reachable. If not reachable, the install command will fail, but not timeout for more than 30 minutes. Most commonly, `transfer_source` may not be reachable due to sending the requests out the incorrect interface. You can specify the source interface for TFTP and FTP transfers with `ip (ftp|tftp) source-interface <iface>` in config mode. Checking reachability and attempting an automated resolution is a feature on the roadmap.
+    * Remove existing IOS packages: `del /force flash:/cat*.pkg`
+    * Remove existing packages.conf: `del /force flash:/packages.conf`
+    * Remove boot variables: `no boot system` in config mode
+    * Copy upgrade image: `copy <source> flash:`
+    * Install upgrade image: `request platform software package expand switch all file flash:/<file>`
+    * Set boot variable: `boot system flash:/<file>`
+    * Schedule reload: `reload at 00:00`
+* Currently, `iosfw` does not check to ensure `transfer_source` is reachable. If not reachable, the install command will fail, but not timeout for more than 30 minutes. Most commonly, `transfer_source` may not be reachable due to sending the requests out the incorrect interface. You can specify the source interface for TFTP and FTP transfers with `ip (ftp|tftp) source-interface <iface>` in config mode.
+
+## Wishlist
+
+* [Nornir](https://github.com/nornir-automation/nornir) integration
+* Fix native SCP image transfer option (broken as of 0.9.0)
+* Accept a pre-existing `napalm` connection object
+* Verify reachability of `transfer_source`, attempting fix as needed
+* More consistent debug output
+* Break `__init__()` into separate methods, with more verbose feedback
+* ISR 4300 support
+* N3K/N9K support
+
+Contributions welcome.
 
 ## Notes
 
+* Expect most upgrades to take 8-10 minutes per device, with one notable exception: Catalyst 3750-X took no less than 40 minutes in testing.
 * Expect devices to take between 10 and 30 minutes to come back after reload, especially if upgrading from 12.x to 15.x, due to microcode updates.
+* The automated install commands (`archive download-sw` and `request platform software package install`) download the upgrade package twice, for reasons I did not determine.
+* FTP and HTTP seem to be the fastest transfer methods. Even then, the download appears constrained by platform CPU resources, averaging about 4Mbps in most tests, while some newer platforms achieved 20Mbps.
 * The `iosfw` class exposes all of NAPALM's config parameters, and stores the NAPALM session under `self.napalm`, so you can use all of NAPALM's features easily.
 * Same goes for netmiko - stored as `self.device` - so you can send arbitrary commands with `iosfw.device.send_command('my arbitrary command')`
