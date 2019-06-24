@@ -19,10 +19,10 @@ transfer_proto: 'ftp'
 # File transfer source machine
 # Set 'localhost' to serve on local machine
 # Currently supports only SCP from localhost.
-transfer_source: ''
+transfer_source: '10.100.3.37'
 
 # File transfer username (FTP)
-transfer_username: ''
+transfer_username: 'adecoup'
 
 # File transfer password (FTP)
 transfer_password: ''
@@ -33,6 +33,11 @@ transfer_path: '/'
 
 # SSH config file to use in connections
 ssh_config_file: '~/.ssh/config'
+
+# Disable exec-timeout during upgrade operation
+# If a copy or install operation takes longer than your line vty
+# exec-timeout setting, the remaining operations will fail.
+disable_exec_timeout: true
 
 # Output / Logging
 #
@@ -158,8 +163,8 @@ fix_scp:
 # hopefully fix it.
 fix_ntp:
     - 'ntp authenticate'
-    - 'ntp authentication-key <key-id> md5 <passphrase>'
-    - 'ntp trusted-key <key-id>'
-    - 'ntp server <ntp-server> key <key-id>'
-    - 'clock timezone <timezone>'
-    - 'clock summer-time <timezone>'
+    - 'ntp authentication-key 2007 md5 russislate'
+    - 'ntp trusted-key 2007'
+    - 'ntp server 10.250.20.1 key 2007'
+    - 'clock timezone clock timezone PST -8'
+    - 'clock summer-time PDT recurring 2 Sun Mar 2:00 1 Sun Nov 2:00'

@@ -15,7 +15,6 @@ import yaml
 
 """ An API built upon NAPALM and Netmiko to manage Cisco IOS firmware. """
 
-# TODO: Disable SSH timeouts during upgrade
 # TODO: Fix SCP from iosfw
 # TODO: Fix clock/NTP as needed
 # TODO: Handle exceptions in connection open/close
@@ -111,6 +110,7 @@ class iosfw(object):
         self.upgrade_space_available = False
         self.transfer_proto = self.config["transfer_proto"]
         self.transfer_source = self.config["transfer_source"]
+        self.exec_timeout = self.get_exec_timeout()
         self.running_image_path = self.get_running_image()
         self.running_image_name = self._get_basename(self.running_image_path)
         self.running_image_feature_set = self._get_image_feature_set(
@@ -212,9 +212,13 @@ class iosfw(object):
                     flags += "/allow-feature-upgrade "
                 break
         if method == "request":
+            if 'ISR' in self.model:
+                target = 'node'
+            else:
+                target = 'switch all'
             return (
-                "request platform software package install switch all "
-                "file {} new auto-copy".format(img)
+                "request platform software package install {} "
+                "file {} new auto-copy".format(target, img)
             )
         if method == "software install":
             return "software install file {} new on-reboot".format(img)
@@ -565,6 +569,51 @@ class iosfw(object):
             ):
                 results.append(image)
         return results
+
+    def get_exec_timeout(self):
+        """ Returns config line for line vty exec-timeout, if exists """
+        cmd = 'sh run | i exec-timeout'
+        self.log.debug('Executing command `{}`...'.format(cmd))
+        output = self.device.send_command(cmd)
+        self.log.debug('Command output:\n{}'.format(output))
+        if output:
+            output = output.split("\n")
+            return output[-1]
+
+    def disable_exec_timeout(self):
+        """ Disables line vty exec timeout """
+        config_set = [
+            'line vty 0 15',
+            'no exec-timeout',
+        ]
+        self.log.info("Disabling line vty exec-timeout...")
+        return self._send_write_config_set(config_set)
+
+    def ensure_exec_timeout_disabled(self):
+        """ Disables line vty exec timeout, if not already disabled """
+        if self.exec_timeout:
+            return self.disable_exec_timeout()
+        else:
+            return True
+
+    def restore_exec_timeout(self):
+        """ Restores line vty exec-timeout """
+        if self.exec_timeout:
+            config_set = [
+                'line vty 0 15',
+                self.exec_timeout,
+            ]
+            self.log.info("Restoring line vty exec-timeout...")
+            return self._send_write_config_set(config_set)
+        else:
+            return True
+
+    def ensure_exec_timeout_restored(self):
+        """ Restores line vty exec-timeout, if needed """
+        if self.exec_timeout != ' exec-timeout 0 0':
+            return self.restore_exec_timeout()
+        else:
+            return True
 
     def set_boot_image(self, new_boot_image_path=None):
         """ Configures device to boot given image on next reload """
@@ -988,8 +1037,9 @@ class iosfw(object):
                 return False
         else:
             self.log.info(
-                "NOTE: No status updates possible during install, "
-                "which may take 10 minutes or longer."
+                "NOTE: No status updates possible during install. "
+                "Expect this to take at least 10 minutes, and in some "
+                "cases, significantly longer."
             )
             output = self.device.send_command(cmd, delay_factor=100)
             self.log.debug(output)
@@ -1129,6 +1179,8 @@ class iosfw(object):
                 "Starting upgrade on {} "
                 "at {}...".format(self.hostname, start)
             )
+            if self.config['disable_exec_timeout']:
+                self.ensure_exec_timeout_disabled()
             if self.ensure_install():
                 self.refresh_upgrade_state()
                 self.ensure_old_image_removal()
@@ -1137,6 +1189,8 @@ class iosfw(object):
                 status = "completed"
             else:
                 status = "failed"
+            if self.config['disable_exec_timeout']:
+                self.ensure_exec_timeout_restored()
             end_t = datetime.now()
             end = end_t.strftime("%X %Y-%m-%d")
             self.log.info(
