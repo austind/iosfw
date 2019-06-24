@@ -41,6 +41,7 @@ Tested on:
 Not tested on:
 * Nexus 3k/9k
 * Catalyst 9k series
+* ISR 400
 
 **NOTE: Use at your own risk.** This is beta software in active development. It works well in my environment, but serious bugs are possible. See known issues below.
 
@@ -86,7 +87,7 @@ See [`example/batch_example.py`](https://github.com/austind/iosfw/blob/master/ex
 
 ## Known issues
 
-* During testing, Catalyst 3750-X models tested took unusually long to install. The install succeeded, but `iosfw` did not recognize install completion and eventually times out. This left them with properly upgrade IOS, but no scheduled reload.
+* During testing, Catalyst 3750-X models took almost 45 minutes to install. This will almost certainly exceed any configured SSH timeout, so be sure to set `disable_exec_timeout` in `config.yaml`.
 * Catalyst 3k series (3650 and 3850) with IOS running in BUNDLE mode (booted directly to the .bin file), will not succeed in upgrading with `request platform software package install`. Upgrading them requires a different manual process that is not yet implemented:
     * Remove existing IOS with `del /force flash:/cat*.pkg`
     * Remove existing packages.conf with `del /force flash:/packages.conf`
