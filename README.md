@@ -13,9 +13,11 @@ Requires:
 ## Overview
 
 Automates the entire upgrade process:
+* Determines correct upgrade image for each platform
 * Transfer the new image
 * Verify image integrity
-* Extract archive and/or install
+* Extract archive and install
+* Optionally remove old image(s)
 * Set boot parameters
 * Schedule reload
 
@@ -24,11 +26,6 @@ Auto-detects best upgrade method available:
 * `software install`
 * `request platform software package install`
 * If those fail, plain `copy` followed by `set boot ...`
-
-Other features:
-* YAML-based config
-* Log to console and/or file, with configurable verbosity
-* Works with ad-hoc upgrades (interactive) or batch jobs (non-interactive)
 
 Supported platforms:
 * Catalyst 3550
@@ -48,18 +45,18 @@ Currently unsupported platforms:
 * Catalyst 9k series
 * ISR 4300
 
-**NOTE: Use at your own risk.** This is beta software in active development. It works well in my environment, but serious bugs are possible. Test thoroughly in a lab environment, and see known issues below.
+**NOTE: Use at your own risk.** It works well in my environment, but serious bugs are possible. Test thoroughly in a lab environment, and see known issues below.
 
 ## Usage
+
+### Preparation
 
 1. Review [`config/config.yaml`](https://github.com/austind/iosfw/blob/master/config/config.yaml) and [`config/images.yaml`](https://github.com/austind/iosfw/blob/master/config/images.yaml) and match them to your requirements. Defaults are sane enough for most environments, but don't take any chances :)
 1. Copy your IOS images defined in `images.yaml` to the `src_image_path` defined in `config.yaml`.
 
-As of 0.9.0, SCP image transfer directly from `iosfw` no longer works. Since SCP encryption slows transfer down with encryption overhead, I recommend setting up an FTP server on a separate host and configuring `config.yaml` accordingly.
-
 **Note:** Pay special attention if you have devices of the *same* model, but need *different* IOS images (e.g., ipbase vs ipservices). In that case, define both images in `images.yaml` and add the same model to their respective `models` lists. Then, change `match_feature_set` to `true` in `config.yaml`.
 
-### Interactive
+### Interactive Example
 
 ```
 >>> from iosfw import iosfw
@@ -88,12 +85,13 @@ Upgrade on ios-sw-1 completed at 14:43:32 06/13/19
 Total time elapsed: 0:09:23.224298
 ```
 
-### Automated
+### Automated Example
 
 See [`example/batch_example.py`](https://github.com/austind/iosfw/blob/master/example/batch_example.py)
 
 ## Known issues
 
+* As of 0.9.0, SCP image transfer directly from `iosfw` no longer works. I recommend setting up an FTP server on a separate host and setting `config.yaml` accordingly.
 * Catalyst 3k series (3650 and 3850) with IOS running in BUNDLE mode (booted directly to the .bin file), will not succeed in upgrading with `request platform software package install`. Upgrading them requires a different manual process that is not yet implemented:
     * Remove existing IOS packages: `del /force flash:/cat*.pkg`
     * Remove existing packages.conf: `del /force flash:/packages.conf`
@@ -103,6 +101,7 @@ See [`example/batch_example.py`](https://github.com/austind/iosfw/blob/master/ex
     * Set boot variable: `boot system flash:/<file>`
     * Schedule reload: `reload at 00:00`
 * Currently, `iosfw` does not check to ensure `transfer_source` is reachable. If not reachable, the install command will fail, but not timeout for more than 30 minutes. Most commonly, `transfer_source` may not be reachable due to sending the requests out the incorrect interface. You can specify the source interface for TFTP and FTP transfers with `ip (ftp|tftp) source-interface <iface>` in config mode.
+* When using SSH proxy, `iosfw` throws a `ProcessLookupError` on exit. I have not found a way to catch or suppress this.
 
 ## Wishlist
 
@@ -120,7 +119,7 @@ Contributions welcome.
 ## Notes
 
 * Expect most upgrades to take 8-10 minutes per device, with one notable exception: Catalyst 3750-X took no less than 40 minutes in testing.
-* Expect devices to take between 10 and 30 minutes to come back after reload, especially if upgrading from 12.x to 15.x, due to microcode updates.
+* Expect devices to take between 10 and 30 minutes to come back after reload, especially if upgrading trains or major versions, due to microcode updates.
 * The automated install commands (`archive download-sw` and `request platform software package install`) download the upgrade package twice, for reasons I did not determine.
 * FTP and HTTP seem to be the fastest transfer methods. Even then, the download appears constrained by platform CPU resources, averaging about 4Mbps in most tests, while some newer platforms achieved 20Mbps.
 * The `iosfw` class exposes all of NAPALM's config parameters, and stores the NAPALM session under `self.napalm`, so you can use all of NAPALM's features easily.
