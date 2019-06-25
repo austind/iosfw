@@ -6,9 +6,9 @@ Automatic Cisco IOS firmware upgrades
 
 Requires:
 * Python 3.6+
-* [netmiko](https://github.com/ktbyers/netmiko)
-* [napalm](https://github.com/napalm-automation/napalm)
-* [tqdm](https://github.com/tqdm/tqdm)
+* [`netmiko`](https://github.com/ktbyers/netmiko)
+* [`napalm`](https://github.com/napalm-automation/napalm)
+* [`tqdm`](https://github.com/tqdm/tqdm)
 
 ## Overview
 

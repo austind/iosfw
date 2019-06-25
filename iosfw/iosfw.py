@@ -16,7 +16,6 @@ import yaml
 """ An API built upon NAPALM and Netmiko to manage Cisco IOS firmware. """
 
 # TODO: Fix SCP from iosfw
-# TODO: Fix clock/NTP as needed
 # TODO: Handle exceptions in connection open/close
 # TODO: Refactor __init__() into methods
 # TODO: Ensure reachability to transfer_source
@@ -346,7 +345,7 @@ class iosfw(object):
         """ Writes running configuration to NVRAM """
         cmd = "write memory"
         output = self.device.send_command_expect(cmd)
-        if "OK" in output:
+        if "OK" in output or output == "#":
             return True
         else:
             self.log.warning(
@@ -996,7 +995,7 @@ class iosfw(object):
         else:
             self.log.info(
                 "NOTE: No status updates possible during install. "
-                "Expect this to take at least 10 minutes, and in some "
+                "Expect this to take about 10 minutes, and in some "
                 "cases, significantly longer."
             )
             output = self.device.send_command(cmd, delay_factor=100)
