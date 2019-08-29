@@ -658,6 +658,15 @@ class iosfw(object):
             )
             return False
 
+    def check_ntp(self):
+        """ Checks if NTP is synchronized """
+        cmd = "show ntp status"
+        output = self.napalm.device.send_command_expect(cmd)
+        if "Clock is synchronized" in output:
+            return True
+        else:
+            return False
+
     def fix_ntp(self):
         """ Fixes NTP if possible """
         fix_ntp_cmds = self.config["fix_ntp"]
@@ -817,10 +826,16 @@ class iosfw(object):
                 self.fix_ntp()
                 self.log.debug("Waiting 30 seconds for NTP to sync...")
                 sleep(30)
-                return self.schedule_reload()
+                if self.check_ntp():
+                    return self.schedule_reload()
+                else:
+                    self.log.critical(
+                        "NTP failed to sync after attempting ntp_fix commands. Cannot continue with reload."
+                    )
+                    return False
             else:
                 self.log.critical(
-                    "No fix_ntp parameters given. " "Cannot continue with reload."
+                    "No fix_ntp parameters given. Cannot continue with reload."
                 )
                 return False
 
