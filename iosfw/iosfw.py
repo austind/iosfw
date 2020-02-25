@@ -7,6 +7,7 @@ import logging
 import napalm
 from netmiko import FileTransfer
 import os
+import telnetlib
 import re
 import scp
 from time import sleep
@@ -27,6 +28,7 @@ class iosfw(object):
         hostname=None,
         username=None,
         password=None,
+	transport=None,
         timeout=60,
         driver="ios",
         optional_args=None,
@@ -79,7 +81,9 @@ class iosfw(object):
         if optional_args is None:
             optional_args = {}
             secret = getpass.getpass("Enable secret: ")
+            transport = str(input("Transport Protocol: "))
             optional_args.update({"secret": secret})
+            optional_args.update({"transport": transport})
             if self.config["ssh_config_file"]:
                 optional_args.update(
                     {"ssh_config_file": self.config["ssh_config_file"]}
@@ -103,7 +107,7 @@ class iosfw(object):
         self.model = self.facts["model"]
         self.hostname = self.facts["hostname"]
         self.fqdn = self.facts["fqdn"]
-        self.transport = self.napalm.transport  # ssh or telnet
+        self.transport = self.napalm.transport # ssh or telnet
         self.upgrade_image_exists = False
         self.upgrade_image_valid = False
         self.upgrade_space_available = False
