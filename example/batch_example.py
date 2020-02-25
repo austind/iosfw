@@ -7,15 +7,12 @@ hosts = ['switch1.example.com', 'switch2', 'switch3', 'switch4', '172.16.32.54']
 current_user = getpass.getuser()
 username = input("Username [{}]: ".format(current_user)) or current_user
 password = getpass.getpass()
-secret = getpass.getpass("Enable secret: ")
 
 upgrade_args = {
     'hostname': None,
     'username': username,
     'password': password,
-    'optional_args': {
-        'secret': secret
-    }
+    'optional_args': None
 }
 
 for host in hosts:
