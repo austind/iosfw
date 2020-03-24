@@ -49,8 +49,8 @@ c3750e-universalk9-tar.152-4.E8.tar:
     models:
         - WS-C3750X-12S
 
-cat3k_caa-universalk9.16.03.08.SPA.bin:
-    md5: c98d0b937945f30b3cd8f58702461b6f
+cat3k_caa-universalk9.16.09.04.SPA.bin:
+    md5: bf139ef01e88f16bf9e54c7120830eab
     models:
         - WS-C3650-48FQ
         - WS-C3650-48PQ
