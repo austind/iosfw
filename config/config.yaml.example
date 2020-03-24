@@ -13,13 +13,11 @@ dest_filesystem: 'flash:'
 dest_image_path: '/'
 
 # File transfer protocol
-# Tested with ftp, tftp and scp.
+# Tested with ftp and tftp. SCP currently not working.
 transfer_proto: 'ftp'
 
-# File transfer source machine
-# Set 'localhost' to serve on local machine
-# Currently supports only SCP from localhost.
-transfer_source: ''
+# File transfer source IP or hostname
+transfer_source: '172.31.16.32'
 
 # File transfer username (FTP)
 transfer_username: ''
@@ -37,6 +35,7 @@ ssh_config_file: '~/.ssh/config'
 # Disable exec-timeout during upgrade operation
 # If a copy or install operation takes longer than your line vty
 # exec-timeout setting, the remaining operations will fail.
+# Original exec-timeout will be restored upon completion.
 disable_exec_timeout: true
 
 # Output / Logging
@@ -49,7 +48,7 @@ disable_exec_timeout: true
 log_method: 'tee'
 #
 # File path for logging
-log_file: 'iosfw.log'
+log_file: './log/iosfw.log'
 # 
 # Output verbosity level
 # Acceptable values, from most verbose to least verbose:
@@ -79,7 +78,7 @@ console_log_level: info
 # false:
 #   - No feature set match is enforced. An upgrade image will match a device
 #     solely based on the model string as configured in images.yaml.
-match_feature_set: false
+match_feature_set: true
 
 # Device reload
 #
@@ -95,7 +94,7 @@ match_feature_set: false
 #
 # reload_at: Absolute time to schedule device reload in HH:MM 24-hour format.
 #   If the time specified has already passed today, schedules for that time
-#   tomorrow.
+#   tomorrow. NOTE: only works if NTP is configured properly (see below).
 #   Examples:
 #   - 00:00  (Default) Midnight tonight (technically 00:00 tomorrow morning)
 #   - 04:30  4:30am
@@ -150,7 +149,7 @@ delete_running_image: 'as_needed'
 #   - If dest_file_system does NOT have enough space for old and new
 #     images to coexist, old images will be deleted before copying new
 #     image.
-delete_old_images: 'always'
+delete_old_images: 'as_needed'
 
 # If SCP is not enabled, run these config commands (in this order) to
 # hopefully fix it.
@@ -163,8 +162,8 @@ fix_scp:
 # hopefully fix it.
 fix_ntp:
     - 'ntp authenticate'
-    - 'ntp authentication-key 2007 md5 russislate'
-    - 'ntp trusted-key 2007'
-    - 'ntp server 10.250.20.1 key 2007'
+    - 'ntp authentication-key 1337 md5 my-ntp-secret'
+    - 'ntp trusted-key 1337'
+    - 'ntp server ntp.example.com key 1337'
     - 'clock timezone clock timezone PST -8'
     - 'clock summer-time PDT recurring 2 Sun Mar 2:00 1 Sun Nov 2:00'
