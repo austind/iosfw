@@ -7,8 +7,11 @@ import logging
 import napalm
 from netmiko import FileTransfer
 import os
+from paramiko import SSHException
+import pprint
 import re
 import scp
+import socket
 from time import sleep
 from tqdm import tqdm
 import yaml
@@ -63,10 +66,10 @@ class iosfw(object):
             ch.setLevel(console_level)
             ch.setFormatter(formatter)
             self.log.addHandler(ch)
-        self.log.debug("Config file: {}".format(self.config_file))
-        self.log.debug("Config parameters: {}".format(self.config))
-        self.log.debug("Image file: {}".format(self.image_file))
-        self.log.debug("Image info: {}".format(self.image_info))
+        self.log.debug("Config file: {}".format(pprint.pprint(self.config_file)))
+        self.log.debug("Config parameters: {}".format(pprint.pprint(self.config)))
+        self.log.debug("Image file: {}".format(pprint.pprint(self.image_file)))
+        self.log.debug("Image info: {}".format(pprint.pprint(self.image_info)))
 
         # Set up connection
         if hostname is None:
@@ -80,30 +83,44 @@ class iosfw(object):
             optional_args = {}
             secret = getpass.getpass("Enable secret: ")
             optional_args.update({"secret": secret})
+            if self.config["ctl_transport"]:
+                primary_transport = self.config['ctl_transport'][0]
+                optional_args.update({"transport": primary_transport})
             if self.config["ssh_config_file"]:
                 optional_args.update(
                     {"ssh_config_file": self.config["ssh_config_file"]}
                 )
-        napalm_driver = napalm.get_network_driver(driver)
-        self.napalm = napalm_driver(
-            hostname=hostname,
-            username=username,
-            password=password,
-            timeout=timeout,
-            optional_args=optional_args,
-        )
+        self.napalm_driver = napalm.get_network_driver(driver)
+        self.napalm_args = {
+            'hostname': hostname,
+            'username': username,
+            'password': password,
+            'timeout': timeout,
+            'optional_args': optional_args
+        }
+        self.napalm = self.napalm_driver(**self.napalm_args)
         self.log.info("===============================================")
-        self.log.info("Opening connection to {}...".format(hostname))
-        self.napalm.open()
+        self.log.info("Opening connection to {} via {}...".format(hostname, primary_transport))
+        self.log.debug(pprint.pprint(self.napalm_args))
+        try:
+            self.napalm.open()
+        except (socket.timeout, SSHException, ConnectionRefusedError):
+            if len(self.config['ctl_transport']) > 1:
+                secondary_transport = self.config['ctl_transport'][1]
+                self.log.warning(f'Unable to connect via {primary_transport}, attempting {secondary_transport}.')
+                self._swap_transport(secondary_transport)
+            else:
+                self.log.critical(f'Unable to connect via {primary_transport} and no alternate given. Cannot continue.')
+                exit(1)
 
         # Aliases and info
-        self.device = self.napalm.device  # Netmiko session
-        self.facts = self.napalm.get_facts()  # NAPALM facts
+        self.device = self.napalm.device # Netmiko session
+        self.facts = self.napalm.get_facts() # NAPALM facts
         self.os_version = self.facts["os_version"]
         self.model = self.facts["model"]
         self.hostname = self.facts["hostname"]
         self.fqdn = self.facts["fqdn"]
-        self.transport = self.napalm.transport  # ssh or telnet
+        self.transport = self.napalm.transport # ssh or telnet
         self.upgrade_image_exists = False
         self.upgrade_image_valid = False
         self.upgrade_space_available = False
@@ -184,6 +201,17 @@ class iosfw(object):
             self.napalm.__del__()
         except OSError.ProcessLookupError:
             pass
+
+    def _swap_transport(self, transport):
+        """ Attempts new connection using provided transport protocol """
+        self.napalm_args['optional_args']['transport'] = transport
+        self.napalm = self.napalm_driver(**self.napalm_args)
+        self.log.debug(pprint.pprint(self.napalm_args))
+        try:
+            self.napalm.open()
+        except (SSHException, ConnectionRefusedError):
+            self.log.critical(f'Unable to connect via {transport}. Cannot continue.')
+            exit(1)
 
     def _get_upgrade_cmd(self):
         """ Returns a command string for auto-upgrade, if supported """

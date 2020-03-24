@@ -1,3 +1,10 @@
+# Control transport protocol
+# iosfw will attempt to establish a control session using the protocols
+# defined here, in this order. Accepted values are 'ssh' or 'telnet'.
+# If both are provided, iosfw will fall back to the second if the first fails.
+ctl_transport:
+    - ssh
+#    - telnet
 
 # Local path to firmware images (no trailing slash).
 # Even if you serve images from a remote machine, include 
