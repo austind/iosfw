@@ -84,7 +84,7 @@ class iosfw(object):
             secret = getpass.getpass("Enable secret: ")
             optional_args.update({"secret": secret})
             if self.config["ctl_transport"]:
-                primary_transport = self.config['ctl_transport'][0]
+                primary_transport = self.config["ctl_transport"][0]
                 optional_args.update({"transport": primary_transport})
             if self.config["ssh_config_file"]:
                 optional_args.update(
@@ -92,35 +92,41 @@ class iosfw(object):
                 )
         self.napalm_driver = napalm.get_network_driver(driver)
         self.napalm_args = {
-            'hostname': hostname,
-            'username': username,
-            'password': password,
-            'timeout': timeout,
-            'optional_args': optional_args
+            "hostname": hostname,
+            "username": username,
+            "password": password,
+            "timeout": timeout,
+            "optional_args": optional_args,
         }
         self.napalm = self.napalm_driver(**self.napalm_args)
         self.log.info("===============================================")
-        self.log.info("Opening connection to {} via {}...".format(hostname, primary_transport))
+        self.log.info(
+            "Opening connection to {} via {}...".format(hostname, primary_transport)
+        )
         self.log.debug(pprint.pprint(self.napalm_args))
         try:
             self.napalm.open()
         except (socket.timeout, SSHException, ConnectionRefusedError):
-            if len(self.config['ctl_transport']) > 1:
-                secondary_transport = self.config['ctl_transport'][1]
-                self.log.warning(f'Unable to connect via {primary_transport}, attempting {secondary_transport}.')
+            if len(self.config["ctl_transport"]) > 1:
+                secondary_transport = self.config["ctl_transport"][1]
+                self.log.warning(
+                    f"Unable to connect via {primary_transport}, attempting {secondary_transport}."
+                )
                 self._swap_transport(secondary_transport)
             else:
-                self.log.critical(f'Unable to connect via {primary_transport} and no alternate given. Cannot continue.')
+                self.log.critical(
+                    f"Unable to connect via {primary_transport} and no alternate given. Cannot continue."
+                )
                 exit(1)
 
         # Aliases and info
-        self.device = self.napalm.device # Netmiko session
-        self.facts = self.napalm.get_facts() # NAPALM facts
+        self.device = self.napalm.device  # Netmiko session
+        self.facts = self.napalm.get_facts()  # NAPALM facts
         self.os_version = self.facts["os_version"]
         self.model = self.facts["model"]
         self.hostname = self.facts["hostname"]
         self.fqdn = self.facts["fqdn"]
-        self.transport = self.napalm.transport # ssh or telnet
+        self.transport = self.napalm.transport  # ssh or telnet
         self.upgrade_image_exists = False
         self.upgrade_image_valid = False
         self.upgrade_space_available = False
@@ -204,13 +210,13 @@ class iosfw(object):
 
     def _swap_transport(self, transport):
         """ Attempts new connection using provided transport protocol """
-        self.napalm_args['optional_args']['transport'] = transport
+        self.napalm_args["optional_args"]["transport"] = transport
         self.napalm = self.napalm_driver(**self.napalm_args)
         self.log.debug(pprint.pprint(self.napalm_args))
         try:
             self.napalm.open()
         except (SSHException, ConnectionRefusedError):
-            self.log.critical(f'Unable to connect via {transport}. Cannot continue.')
+            self.log.critical(f"Unable to connect via {transport}. Cannot continue.")
             exit(1)
 
     def _get_upgrade_cmd(self):
