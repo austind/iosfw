@@ -824,9 +824,9 @@ class iosfw(object):
             reload_in = self.config["reload_in"]
 
         # Validate inputs
-        if reload_at is str and reload_in is str:
+        if isinstance(reload_at, str) and isinstance(reload_in, str):
             raise ValueError("Use either reload_in or reload_at, not both")
-        if reload_at is not str and reload_in is not str:
+        if not isinstance(reload_at, str) and not isinstance(reload_in, str):
             reload_at = "00:00"
         if reload_at:
             reload_at = str(reload_at).strip()
