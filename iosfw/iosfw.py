@@ -151,6 +151,7 @@ class iosfw(object):
         self.upgrade_cmd = self._get_upgrade_cmd()
         self.upgrade_method = self._get_upgrade_method()
         self.transfer_proto = self.config["transfer_proto"]
+        self.reload_requested = self.check_reload_requested()
         self.needs_reload = self.check_needs_reload()
         self.reload_scheduled = self.check_reload_scheduled()
         self.old_images = self.get_old_images()
@@ -758,6 +759,15 @@ class iosfw(object):
         else:
             return False
 
+    def check_reload_requested(self):
+        """ Checks if reload is requested in config """
+        if not isinstance(self.config["reload_in"], str) and not isinstance(
+            self.config["reload_at"]
+        ):
+            return False
+        else:
+            return True
+
     def check_needs_reload(self):
         """ Check if running image does not equal boot image """
         if self.upgrade_method == "auto":
@@ -1187,7 +1197,10 @@ class iosfw(object):
             end = end_t.strftime("%X %Y-%m-%d")
             self.log.info("Upgrade on {} {} at {}".format(self.hostname, status, end))
         elif self.needs_reload and not self.reload_scheduled:
-            self.ensure_reload_scheduled()
+            if self.reload_requested:
+                self.ensure_reload_scheduled()
+            else:
+                self.log.info("Reload config not set. No reload scheduled.")
         else:
             self.log.info("No action needed.")
         end_t = datetime.now()

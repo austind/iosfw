@@ -89,7 +89,7 @@ match_feature_set: true
 
 # Device reload
 #
-# If you do not want to schedule a reload, set either reload_in or reload_at
+# If you do not want to schedule a reload, set both reload_in and reload_at
 # to false.
 #
 # reload_in: Time delay before reloading device in HHH:MM or MMM
