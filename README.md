@@ -39,6 +39,7 @@ Supported platforms:
 * Catalyst 3850
 * ISR 2921
 * C892FSP
+* ME3400
 
 Currently unsupported platforms:
 * Nexus 3k/9k
