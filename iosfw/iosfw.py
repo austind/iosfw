@@ -762,7 +762,7 @@ class iosfw(object):
     def check_reload_requested(self):
         """ Checks if reload is requested in config """
         if not isinstance(self.config["reload_in"], str) and not isinstance(
-            self.config["reload_at"]
+            self.config["reload_at"], str
         ):
             return False
         else:
