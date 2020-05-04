@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import getpass
 import hashlib
 import logging
@@ -9,6 +9,7 @@ from netmiko import FileTransfer
 import os
 from paramiko import SSHException
 import pprint
+import random
 import re
 import scp
 import socket
@@ -484,6 +485,21 @@ class iosfw(object):
                 rebuild = match.group(3)
                 return f"{train}({throttle}){rebuild}"
 
+    def _get_random_time(self, reload_at=None, reload_in=None, interval=0):
+        """ Returns a random minute between reload_at/in + interval """
+        if reload_at:
+            start_time = datetime.strptime(reload_at, "%H:%M")
+            time_list = [start_time + timedelta(minutes=x) for x in range(interval)]
+            return random.choice(time_list).strftime("%H:%M")
+        elif reload_in:
+            if ":" in reload_in:
+                hours = int(reload_in.split(":")[0])
+                mins = int(reload_in.split(":")[1])
+                start_at = hours * 60 + mins
+            return random.choice(range(start_at, start_at + interval))
+        else:
+            return False
+
     def get_upgrade_version(self, raw=False):
         """ Parses image name to return IOS version string """
         return self._get_version_from_file(self.upgrade_image_name, raw)
@@ -764,54 +780,82 @@ class iosfw(object):
             return False
 
     def schedule_reload(
-        self, reload_at=None, reload_in=None, save_modified_config=True
+        self,
+        reload_at=None,
+        reload_in=None,
+        reload_range=None,
+        save_modified_config=True,
     ):
         """ Schedules reload
             Overwrites pending reload, if already scheduled
             Defaults to midnight tonight (technically, 00:00 tomorrow)
 
             reload_at (str)
-                Absolute time to reload device at in 'hh:mm' format
+                Absolute time to reload device at in 'HH:MM' 24-hour format
             reload_in (str)
                 Relative time (delay from now) before reloading
-                device in 'mmm' or 'hhh:mm' format
+                device in 'MMM' or 'HHH:MM' format
+            reload_range (int)
+                Time range, in minutes, to randomize reload across,
+                starting at time specified in either reload_at or
+                reload_in.
             save_modified_config (bool)
                 Whether or not to save outstanding config changes,
                 if any
         """
-        # Should be hh:mm, but h:mm is valid; IOS prepends 0
-        # e.g.: `reload at 7:35` schedules reload at 07:35 (7:35am)
-        reload_at_pattern = r"^\d{1,2}:\d{2}$"
+        reload_at_pattern = r"^\d{2}:\d{2}$"
         reload_in_pattern = r"^\d{1,3}$|^\d{1,3}:\d{2}$"
 
         if reload_at is None:
             reload_at = self.config["reload_at"]
         if reload_in is None:
             reload_in = self.config["reload_in"]
+        if reload_range is None:
+            reload_range = self.config["reload_range"]
 
         # Validate inputs
         if reload_at is str and reload_in is str:
             raise ValueError("Use either reload_in or reload_at, not both")
         if reload_at is not str and reload_in is not str:
             reload_at = "00:00"
+        if reload_range:
+            try:
+                reload_range = int(reload_range)
+            except ValueError:
+                raise ValueError(
+                    f"Option 'reload_range' must be an integer greater than 1 ({reload_range} given)"
+                )
         if reload_at:
             reload_at = str(reload_at).strip()
             if re.match(reload_at_pattern, reload_at):
-                cmd = f"reload at {reload_at}"
+                prep = "at"
+                if reload_range:
+                    reload_time = self._get_random_time(
+                        reload_at=reload_at, interval=reload_range
+                    )
+                else:
+                    reload_time = reload_at
             else:
                 self.log.critical(
-                    f"reload_at must be 'hh:mm' or 'h:mm' ('{reload_at}' given)"
+                    f"Option 'reload_at' must be 'hh:mm' or 'h:mm' ('{reload_at}' given)"
                 )
                 return False
         if reload_in:
             reload_in = str(reload_in).strip()
             if re.match(reload_in_pattern, reload_in):
-                cmd = f"reload in {reload_in}"
+                prep = "in"
+                if reload_range:
+                    reload_time = self._get_random_time(
+                        reload_in=reload_in, interval=reload_range
+                    )
+                else:
+                    reload_time = reload_in
             else:
                 self.log.critical(
-                    f"reload_in must be 'mmm' or 'hhh:mm' ('{reload_in}' given)"
+                    f"Option 'reload_in' must be 'mmm' or 'hhh:mm' ('{reload_in}' given)"
                 )
                 return False
+        cmd = f"reload {prep} {reload_time}"
 
         # Schedule the reload
         self._ensure_enable_not_config()
