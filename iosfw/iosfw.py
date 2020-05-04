@@ -851,7 +851,10 @@ class iosfw(object):
         if reload_in:
             reload_in = str(reload_in).strip()
             if re.match(reload_in_pattern, reload_in):
-                cmd = "reload in {}".format(reload_in)
+                if reload_in == 0:
+                    cmd = "reload"
+                else:
+                    cmd = "reload in {}".format(reload_in)
             else:
                 self.log.critical(
                     "reload_in must be 'mmm' or 'hhh:mm' "

@@ -92,6 +92,8 @@ match_feature_set: true
 # If you do not want to schedule a reload, set both reload_in and reload_at
 # to false.
 #
+# If you want to reload immediately after install, pass reload_in: 0
+#
 # reload_in: Time delay before reloading device in HHH:MM or MMM
 #   Examples:
 #   - 1:30   one hour and thirty minutes from now
