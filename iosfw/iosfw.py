@@ -916,14 +916,13 @@ class iosfw(object):
         scheduled = self.check_reload_scheduled()
         if not scheduled:
             self.log.info("Scheduling reload...")
-            return self.schedule_reload()
-        else:
-            return scheduled
-        self.log.info(
-            "Reload scheduled for {} ({} away)".format(
-                scheduled["absolute_time"], scheduled["relative_time"]
+            scheduled = self.schedule_reload()
+        if scheduled:
+            self.log.info(
+                "Reload scheduled for {} ({} away)".format(
+                    scheduled["absolute_time"], scheduled["relative_time"]
+                )
             )
-        )
 
     def _delete_file(self, file_name):
         """ Deletes a remote file from device """
