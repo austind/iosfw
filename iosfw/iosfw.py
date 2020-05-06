@@ -466,7 +466,7 @@ class iosfw(object):
 
     def _get_version_from_file(self, file_name, raw=False):
         """ Returns a version string from a file name """
-        pattern = r"(\d+\.\d+\.\d+)\.SPA"
+        pattern = r"(\d+\.\d+\.\w+)\.SPA"
         match = re.search(pattern, file_name)
         if match:
             if raw:
