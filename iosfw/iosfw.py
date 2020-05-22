@@ -242,13 +242,9 @@ class iosfw(object):
                         flags += "/allow-feature-upgrade "
                     break
         if method == "request":
-            if "ISR" in self.model:
-                target = "node"
-            else:
-                target = "switch all"
             return (
-                "request platform software package install {} "
-                "file {} new auto-copy".format(target, img)
+                f"request platform software package install switch all "
+                "file {img} new auto-copy"
             )
         if method == "software install":
             return f"software install file {img} new on-reboot"
