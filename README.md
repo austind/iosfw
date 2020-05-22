@@ -27,7 +27,7 @@ Auto-detects best upgrade method available:
 * `request platform software package install`
 * If those fail, plain `copy` followed by `set boot ...`
 
-Supported platforms:
+Fully supported platforms:
 * Catalyst 3550
 * Catalyst 3560
 * Catalyst 3560-X
@@ -38,12 +38,15 @@ Supported platforms:
 * Catalyst 3650
 * Catalyst 3850
 * ISR 2921
+* ISR 4331
 * C892FSP
 
+Experimentally supported platforms:
+* ASR920
+
 Currently unsupported platforms:
-* Nexus 3k/9k
+* Nexus 3k/9k series
 * Catalyst 9k series
-* ISR 4300
 
 **NOTE: Use at your own risk.** It works well in my environment, but serious bugs are possible. Test thoroughly in a lab environment, and see known issues below.
 

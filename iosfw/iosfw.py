@@ -143,6 +143,7 @@ class iosfw(object):
         self.upgrade_image_src_path = self._get_src_path(
             self.upgrade_image_name, local=True
         )
+        self.dest_filesystem = self._get_dest_fs()
         self.upgrade_image_dest_path = self._get_dest_path(self.upgrade_image_name)
         self.boot_image_path = self.get_boot_image()
         self.firmware_installed = self.check_firmware_installed()
@@ -225,9 +226,9 @@ class iosfw(object):
         else:
             img = image_src
         cmds = ["request", "software install", "archive download-sw", "copy"]
-        # Newer ASRs run code that ostensibly support "request" method, but
+        # ASR/ISRs run code that ostensibly support "request" method, but
         # actually only support "copy" method.
-        if "ASR" in self.model:
+        if "ASR" in self.model or "ISR" in self.model:
             method = "copy"
         else:
             for cmd in cmds:
@@ -292,6 +293,46 @@ class iosfw(object):
         else:
             return f"{proto}://{src}{path}{file_name}"
 
+    def _detect_dest_fs(self):
+        """ Returns filesystem of currently running image """
+        cmd = "show version"
+        output = self.device.send_command(cmd)
+        pattern = r"System\s+image\s+file\s+is\s+\"(\w+\:)"
+        match = re.search(pattern, output)
+        if match:
+            return match.group(1)
+        else:
+            return False
+
+    def _check_dest_fs(self, fs):
+        """ Checks if a destination filesystem exists """
+        if ":" not in fs:
+            fs = fs + ":"
+        cmd = f"dir {fs}"
+        output = self.device.send_command(cmd)
+        if "Directory of" in output:
+            return True
+        elif "Invalid input" in output:
+            return False
+        else:
+            raise ValueError(f"Unexpected output. Command: {cmd}\nOutput: {output}")
+
+    def _get_dest_fs(self):
+        """ Determines correct destination filesystem """
+        for fs in self.config["dest_filesystem"]:
+            if fs == "auto":
+                dest_fs = self._detect_dest_fs()
+                if dest_fs:
+                    return dest_fs
+                else:
+                    continue
+            else:
+                fs_exists = self._check_dest_fs(fs)
+                if fs_exists:
+                    return fs
+                else:
+                    continue
+
     def _get_dest_path(self, file_name=None, absolute=True):
         """ Returns full destination file path
             absolute (bool):
@@ -302,7 +343,7 @@ class iosfw(object):
             file_name = self.upgrade_image_name
         full_path = ""
         if absolute:
-            full_path += self.config["dest_filesystem"]
+            full_path += self.dest_filesystem
         full_path += "{}{}".format(self.config["dest_image_path"], file_name)
         return full_path
 
@@ -533,9 +574,12 @@ class iosfw(object):
         """ Returns the remote path of the image used on next reload """
         cmd = "show boot | include BOOT"
         output = self.device.send_command(cmd)
+        if "Ambiguous command" in output:
+            cmd = "show bootvar | include BOOT"
+            output = self.device.send_command(cmd)
         if "Invalid input" in output:
             self.log.debug(
-                "Device does not support `show boot`. Checking running config..."
+                "Device does not support `show boot` or `show bootvar`. Checking running config..."
             )
             cmd = "show run | i boot"
             output = self.device.send_command(cmd)
@@ -559,7 +603,7 @@ class iosfw(object):
     def get_installed_images(self):
         """ Returns list of images installed on dest_fs """
         results = []
-        dest_fs = self.config["dest_filesystem"]
+        dest_fs = self.dest_filesystem
         cmd = f"dir {dest_fs}"
         output = self.device.send_command_timing(cmd)
         for line in output.split("\n"):
@@ -735,7 +779,7 @@ class iosfw(object):
     def check_firmware_installed(self):
         """ Checks if upgrade package is already installed """
         version = self.get_upgrade_version(raw=True)
-        dest_fs = self.config["dest_filesystem"]
+        dest_fs = self.dest_filesystem
         files = self.device.send_command(f"dir {dest_fs}")
         if "packages.conf" in self.boot_image_path:
             conf = self.device.send_command("more flash:packages.conf")
@@ -946,7 +990,7 @@ class iosfw(object):
         """
         if delete_path:
             path = self._get_path(file_name)
-            if path != self.config["dest_filesystem"]:
+            if path != self.dest_filesystem:
                 self.log.info(f"Removing {path}...")
                 return self._delete_file(path)
             else:
@@ -1006,7 +1050,7 @@ class iosfw(object):
                 "ssh_conn": self.device,
                 "source_file": src_file,
                 "dest_file": self._get_dest_path(dest_file, absolute=False),
-                "file_system": self.config["dest_filesystem"],
+                "file_system": self.dest_filesystem,
             }
             self.ft = FileTransfer(**ft_args)
         elif self.transport == "telnet":

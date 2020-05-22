@@ -12,8 +12,18 @@ ctl_transport:
 # file size and hash integrity checks.
 src_image_path: '../ios'
 
-# Filesystem on device to store upgrade image.
-dest_filesystem: 'flash:'
+# Filesystem(s) on device to store upgrade image.
+# Attempts these filesystems in this order, stopping at the first
+# that exists on the target device.
+#
+# "auto" will attempt to detect the filesystem of the running image
+# and use that. When using "auto," specify a fallback in case
+# detection fails.
+#
+dest_filesystem:
+    - 'auto'
+    - 'bootflash:'
+    - 'flash:'
 
 # Remote path on device. '/' means root filesystem (no trailing slash
 # otherwise)
