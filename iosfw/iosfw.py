@@ -225,16 +225,21 @@ class iosfw(object):
         else:
             img = image_src
         cmds = ["request", "software install", "archive download-sw", "copy"]
-        for cmd in cmds:
-            output = self.device.send_command(cmd + " ?")
-            if "Incomplete command" in output:
-                method = cmd
-                if (
-                    "allow-feature-upgrade" in output
-                    and not self.config["match_feature_set"]
-                ):
-                    flags += "/allow-feature-upgrade "
-                break
+        # Newer ASRs run code that ostensibly support "request" method, but
+        # actually only support "copy" method.
+        if "ASR" in self.model:
+            method = "copy"
+        else:
+            for cmd in cmds:
+                output = self.device.send_command(cmd + " ?")
+                if "Incomplete command" in output:
+                    method = cmd
+                    if (
+                        "allow-feature-upgrade" in output
+                        and not self.config["match_feature_set"]
+                    ):
+                        flags += "/allow-feature-upgrade "
+                    break
         if method == "request":
             if "ISR" in self.model:
                 target = "node"
@@ -546,7 +551,10 @@ class iosfw(object):
                 )
                 return self.get_installed_images()[0]
         else:
-            return output.split(": ")[-1].strip()
+            pattern = r"^.*[=:]\s([^,\v]+)"
+            match = re.search(pattern, output)
+            if match:
+                return match.group(1)
 
     def get_installed_images(self):
         """ Returns list of images installed on dest_fs """
