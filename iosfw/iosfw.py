@@ -120,7 +120,9 @@ class iosfw(object):
         }
         self.napalm = self.napalm_driver(**self.napalm_args)
         self.log.info("===============================================")
-        self.log.info(f"Opening connection to {self.hostname} via {primary_transport}...")
+        self.log.info(
+            f"Opening connection to {self.hostname} via {primary_transport}..."
+        )
         self.log.debug(pprint.pprint(self.napalm_args))
         try:
             self.napalm.open()
