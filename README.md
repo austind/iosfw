@@ -64,11 +64,12 @@ Currently unsupported platforms:
 ```
 >>> from iosfw import iosfw
 >>> device = iosfw('ios-sw-1')
+>>> device.open()
 Username [austindcc]:
 Password:
 Enable secret:
 Opening connection to ios-sw-1...
-Connected to ios-sw-1 (WS-C3560X-48P) as adecoup via ssh
+Connected to ios-sw-1 (WS-C3560X-48P) as austind via ssh
 Running version: 12.2(55)SE8
 Upgrade version: 15.2(4)E8
 Upgrade status: NEEDS UPGRADE

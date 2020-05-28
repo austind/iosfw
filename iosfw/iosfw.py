@@ -68,52 +68,60 @@ class iosfw(object):
         # self.log.debug("Image file:\n{}".format(pprint.pprint(self.image_file)))
         # self.log.debug("Image info:\n{}".format(pprint.pprint(self.image_info)))
 
+        self.hostname = hostname
+        self.username = username
+        self.password = password
+        self.optional_args = optional_args
+        self.driver = driver
+        self.timeout = timeout
+
+    def open(self):
         # Set up connection
-        if hostname is None:
+        if self.hostname is None:
             hostname = str(input("Hostname or IP: "))
-        if username is None:
+        if self.username is None:
             if "ctl_username" in self.config and isinstance(
                 self.config["ctl_username"], str
             ):
-                username = self.config["ctl_username"]
+                self.username = self.config["ctl_username"]
             else:
                 whoami = getpass.getuser()
-                username = str(input(f"Username [{whoami}]: ")) or whoami
-        if password is None:
+                self.username = str(input(f"Username [{whoami}]: ")) or whoami
+        if self.password is None:
             if "ctl_password" in self.config and isinstance(
                 self.config["ctl_password"], str
             ):
-                password = self.config["ctl_password"]
+                self.password = self.config["ctl_password"]
             else:
-                password = getpass.getpass()
-        if optional_args is None:
-            optional_args = {}
+                self.password = getpass.getpass()
+        if self.optional_args is None:
+            self.optional_args = {}
             if "ctl_secret" in self.config and isinstance(
                 self.config["ctl_secret"], str
             ):
                 secret = self.config["ctl_secret"]
             else:
                 secret = getpass.getpass("Enable secret: ")
-            optional_args.update({"secret": secret})
+            self.optional_args.update({"secret": secret})
             if self.config["ctl_transport"]:
                 primary_transport = self.config["ctl_transport"][0]
-                optional_args.update({"transport": primary_transport})
+                self.optional_args.update({"transport": primary_transport})
             if self.config["ssh_config_file"]:
-                optional_args.update(
+                self.optional_args.update(
                     {"ssh_config_file": self.config["ssh_config_file"]}
                 )
-        self.napalm_driver = napalm.get_network_driver(driver)
+        self.napalm_driver = napalm.get_network_driver(self.driver)
         self.napalm_args = {
-            "hostname": hostname,
-            "username": username,
-            "password": password,
-            "timeout": timeout,
-            "optional_args": optional_args,
+            "hostname": self.hostname,
+            "username": self.username,
+            "password": self.password,
+            "timeout": self.timeout,
+            "optional_args": self.optional_args,
         }
         self.napalm = self.napalm_driver(**self.napalm_args)
         self.log.info("===============================================")
-        self.log.info(f"Opening connection to {hostname} via {primary_transport}...")
-        # self.log.debug(pprint.pprint(self.napalm_args))
+        self.log.info(f"Opening connection to {self.hostname} via {primary_transport}...")
+        self.log.debug(pprint.pprint(self.napalm_args))
         try:
             self.napalm.open()
         except (socket.timeout, SSHException, ConnectionRefusedError):
