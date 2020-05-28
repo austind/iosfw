@@ -665,7 +665,7 @@ class iosfw(object):
 
     def restore_exec_timeout(self):
         """ Restores line vty exec-timeout """
-        if self.exec_timeout != " exec-timeout 0 0":
+        if self.exec_timeout:
             config_set = ["line vty 0 15", self.exec_timeout]
             self.log.info("Restoring line vty exec-timeout...")
             return self._send_write_config_set(config_set)
@@ -803,11 +803,13 @@ class iosfw(object):
 
     def check_reload_requested(self):
         """ Check if reload params given in config """
-        if "reload_in" in self.config or "reload_at" in self.config:
-            if (
-                self.config["reload_in"] is not None
-                or self.config["reload_at"] is not None
-            ):
+        if "reload_in" in self.config:
+            if self.config['reload_in']:
+                return True
+            else:
+                return False
+        elif "reload_at" in self.config:
+            if self.config['reload_at']:
                 return True
             else:
                 return False
