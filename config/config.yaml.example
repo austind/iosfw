@@ -105,17 +105,19 @@ match_feature_set: true
 
 # Device reload
 #
-# If you do not want to schedule a reload, set either reload_in or reload_at
-# to false.
+# If you do not want to schedule a reload, comment out both reload_in and
+# reload_at.
 #
-# If you want to reload immediately after install, pass reload_in: 0
+# If you want to reload immediately after install, pass reload_in: 1
+# N.B.: Passing reload_in: 0 will still send `reload in 1` to the device.
+# This allows iosfw to cleanly terminate the control session.
 #
-# reload_in: Time delay before reloading device in HHH:MM or MMM
+# reload_in: Relative time delay before reloading device in HHH:MM or MMM
 #   Examples:
 #   - 1:30   one hour and thirty minutes from now
 #   - 24:00  twenty-four hours from now (this time tomorrow)
 #   - 240    two hundred and forty minutes from now
-#   - 0      reload in 0 minutes (now)
+#   - 1      reload in one minute
 #
 # reload_at: Absolute time to schedule device reload in HH:MM 24-hour format.
 #   If the time specified has already passed today, schedules for that time
@@ -127,12 +129,13 @@ match_feature_set: true
 #
 # reload_range: Time range (in minutes) across which to randomize reloads,
 #   beginning at the time specified in either reload_in or reload_at.
+#   Pass reload_range: 0 to schedule reload at exact time given (no range).
 #
 # NOTE: reload_in and reload_at are mutually exclusive (set one or the other).
 #       If you specify both, you'll get an exception.
-reload_in: false
+#reload_in: 0
 reload_at: '00:00'
-#reload_range: 120
+#reload_range: 0
 
 # Conditions under which to delete the current/running firmware image.
 #

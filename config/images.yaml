@@ -31,12 +31,12 @@ c3560-ipbasek9-tar.122-55.SE12.tar:
 c3560e-universalk9-tar.152-4.E10.tar:
     md5: bcd22cd6e4af2209466efba210b62820
     models:
+        - WS-C3560X-48
+        - WS-C3560X-24
         - WS-C3560X-24P
         - WS-C3560X-24T
         - WS-C3560X-48P
         - WS-C3560X-48T
-        - WS-C3560X-48
-        - WS-C3560X-24
         
 c3750-ipbaselmk9-tar.122-55.SE12.tar:
     md5: 36e116cbbcab222d28d60f65f08b126e

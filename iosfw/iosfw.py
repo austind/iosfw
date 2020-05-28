@@ -39,6 +39,7 @@ class iosfw(object):
         self.config = self._read_yaml_file(config_file)
         self.image_file = image_file
         self.image_info = self._read_yaml_file(image_file)
+        # TODO: Validate config inputs
 
         # Logging
         self.log_method = self.config["log_method"]
@@ -62,29 +63,35 @@ class iosfw(object):
             ch.setLevel(console_level)
             ch.setFormatter(formatter)
             self.log.addHandler(ch)
-        #self.log.debug("Config file:\n{}".format(pprint.pprint(self.config_file)))
-        #self.log.debug("Config parameters:\n{}".format(pprint.pprint(self.config)))
-        #self.log.debug("Image file:\n{}".format(pprint.pprint(self.image_file)))
-        #self.log.debug("Image info:\n{}".format(pprint.pprint(self.image_info)))
+        # self.log.debug("Config file:\n{}".format(pprint.pprint(self.config_file)))
+        # self.log.debug("Config parameters:\n{}".format(pprint.pprint(self.config)))
+        # self.log.debug("Image file:\n{}".format(pprint.pprint(self.image_file)))
+        # self.log.debug("Image info:\n{}".format(pprint.pprint(self.image_info)))
 
         # Set up connection
         if hostname is None:
             hostname = str(input("Hostname or IP: "))
         if username is None:
-            if self.config['ctl_username']:
-                username = self.config['ctl_username']
+            if "ctl_username" in self.config and isinstance(
+                self.config["ctl_username"], str
+            ):
+                username = self.config["ctl_username"]
             else:
                 whoami = getpass.getuser()
                 username = str(input(f"Username [{whoami}]: ")) or whoami
         if password is None:
-            if self.config['ctl_password']:
-                password = self.config['ctl_password']
+            if "ctl_password" in self.config and isinstance(
+                self.config["ctl_password"], str
+            ):
+                password = self.config["ctl_password"]
             else:
                 password = getpass.getpass()
         if optional_args is None:
             optional_args = {}
-            if self.config['ctl_secret']:
-                secret = self.config['ctl_secret']
+            if "ctl_secret" in self.config and isinstance(
+                self.config["ctl_secret"], str
+            ):
+                secret = self.config["ctl_secret"]
             else:
                 secret = getpass.getpass("Enable secret: ")
             optional_args.update({"secret": secret})
@@ -106,7 +113,7 @@ class iosfw(object):
         self.napalm = self.napalm_driver(**self.napalm_args)
         self.log.info("===============================================")
         self.log.info(f"Opening connection to {hostname} via {primary_transport}...")
-        #self.log.debug(pprint.pprint(self.napalm_args))
+        # self.log.debug(pprint.pprint(self.napalm_args))
         try:
             self.napalm.open()
         except (socket.timeout, SSHException, ConnectionRefusedError):
@@ -155,6 +162,7 @@ class iosfw(object):
         self.upgrade_cmd = self._get_upgrade_cmd()
         self.upgrade_method = self._get_upgrade_method()
         self.transfer_proto = self.config["transfer_proto"]
+        self.reload_requested = self.check_reload_requested()
         self.needs_reload = self.check_needs_reload()
         self.reload_scheduled = self.check_reload_scheduled()
         self.old_images = self.get_old_images()
@@ -489,10 +497,9 @@ class iosfw(object):
                         f"Image file does not exist: {upgrade_image_path}"
                     )
                     return False
-        self.log.critical(
-            f"Could not find upgrade image for model {self.model} in image file {self.image_file}."
-        )
-        return False
+        msg = f"Could not find upgrade image for model {self.model} in image file {self.image_file}. Cannot continue."
+        self.log.critical(msg)
+        raise ValueError(msg)
 
     def _get_basename(self, file_path):
         """ Returns a file name from a file path
@@ -520,7 +527,7 @@ class iosfw(object):
             else:
                 return re.sub(r"\.0", ".", match.group(1))
 
-        pattern = r"(\d{3})-(\d+)\.(\w+)"
+        pattern = r"(\d+)-(\d+)\.(\w+)"
         match = re.search(pattern, file_name)
         if match:
             if raw:
@@ -542,6 +549,8 @@ class iosfw(object):
                 hours = int(reload_in.split(":")[0])
                 mins = int(reload_in.split(":")[1])
                 start_at = hours * 60 + mins
+            else:
+                start_at = int(reload_in)
             return random.choice(range(start_at, start_at + interval))
         else:
             return False
@@ -612,7 +621,7 @@ class iosfw(object):
             # c3560-ipbasek9-mz.122-55.SE12
             # c2900-universalk9-mz.SPA.152-4.M4.bin
             # pattern = r'\w+-\w+-\w+.\d+-\w+\.\w+'
-            pattern = r"\d+-\w+\.\w+"
+            pattern = r"\d+-\d+\.\w+"
             match = re.search(pattern, file_name)
             if match:
                 results.append(f"{dest_fs}/{file_name}")
@@ -792,6 +801,19 @@ class iosfw(object):
         else:
             return False
 
+    def check_reload_requested(self):
+        """ Check if reload params given in config """
+        if "reload_in" in self.config or "reload_at" in self.config:
+            if (
+                self.config["reload_in"] is not None
+                or self.config["reload_at"] is not None
+            ):
+                return True
+            else:
+                return False
+        else:
+            return False
+
     def check_needs_reload(self):
         """ Check if running image does not equal boot image """
         if self.upgrade_method == "auto":
@@ -858,30 +880,37 @@ class iosfw(object):
         reload_at_pattern = r"^\d{2}:\d{2}$"
         reload_in_pattern = r"^\d{1,3}$|^\d{1,3}:\d{2}$"
 
+        # Load defaults
         if reload_at is None:
-            reload_at = self.config["reload_at"]
+            if "reload_at" in self.config:
+                reload_at = self.config["reload_at"]
         if reload_in is None:
-            reload_in = self.config["reload_in"]
+            if "reload_in" in self.config:
+                reload_in = self.config["reload_in"]
         if reload_range is None:
-            reload_range = self.config["reload_range"]
+            if "reload_range" in self.config:
+                reload_range = self.config["reload_range"]
 
         # Validate inputs
-        if reload_at is str and reload_in is str:
-            raise ValueError("Use either reload_in or reload_at, not both")
-        if not isinstance(reload_at, str) and not isinstance(reload_in, str):
-            reload_at = "00:00"
+        if reload_in and reload_at:
+            raise ValueError("Use either reload_in or reload_at, not both.")
+        if reload_in is None and reload_at is None:
+            self.log.warning(
+                "Neither reload_in nor reload_at given. No reload scheduled."
+            )
+            return False
         if reload_range:
             try:
                 reload_range = int(reload_range)
             except ValueError:
                 raise ValueError(
-                    f"Option 'reload_range' must be an integer greater than 1 ({reload_range} given)"
+                    f"Option 'reload_range' must be an integer ({reload_range} given)"
                 )
-        if reload_at:
+        if reload_at is not None:
             reload_at = str(reload_at).strip()
             if re.match(reload_at_pattern, reload_at):
                 prep = "at"
-                if reload_range:
+                if reload_range and reload_range > 0:
                     reload_time = self._get_random_time(
                         reload_at=reload_at, interval=reload_range
                     )
@@ -892,11 +921,15 @@ class iosfw(object):
                     f"Option 'reload_at' must be 'hh:mm' or 'h:mm' ('{reload_at}' given)"
                 )
                 return False
-        if reload_in:
+        if reload_in is not None:
             reload_in = str(reload_in).strip()
             if re.match(reload_in_pattern, reload_in):
                 prep = "in"
-                if reload_range:
+                if reload_in == "0":
+                    # Scheduling reload for 1 minute ahead allows us to cleanly
+                    # terminate the control session
+                    reload_in = "1"
+                if reload_range and reload_range > 0:
                     reload_time = self._get_random_time(
                         reload_in=reload_in, interval=reload_range
                     )
@@ -1243,7 +1276,10 @@ class iosfw(object):
             end = end_t.strftime("%X %Y-%m-%d")
             self.log.info(f"Upgrade on {self.hostname} {status} at {end}")
         elif self.needs_reload and not self.reload_scheduled:
-            self.ensure_reload_scheduled()
+            if self.reload_requested:
+                self.ensure_reload_scheduled()
+            else:
+                self.log.info("Reload params not given. No reload scheduled.")
         else:
             self.log.info("No action needed.")
         end_t = datetime.now()
