@@ -804,15 +804,11 @@ class iosfw(object):
     def check_reload_requested(self):
         """ Check if reload params given in config """
         if "reload_in" in self.config:
-            if self.config['reload_in']:
+            if self.config["reload_in"]:
                 return True
-            else:
-                return False
         elif "reload_at" in self.config:
-            if self.config['reload_at']:
+            if self.config["reload_at"]:
                 return True
-            else:
-                return False
         else:
             return False
 
