@@ -1,4 +1,10 @@
-# Control transport protocol
+# Control session credentials
+# Set to 'false' to prompt at runtime
+ctl_username: 'admin'
+ctl_password: 'mypass'
+ctl_secret: 'mysecret'
+
+# Control session transport protocol
 # iosfw will attempt to establish a control session using the protocols
 # defined here, in this order. Accepted values are 'ssh' or 'telnet'.
 # If both are provided, iosfw will fall back to the second if the first fails.
@@ -11,6 +17,10 @@ ctl_transport:
 # copies in a local directory. This enables iosfw to perform
 # file size and hash integrity checks.
 src_image_path: '../ios'
+
+# Remote path on device. '/' means root filesystem (no trailing slash
+# otherwise)
+dest_image_path: '/'
 
 # Filesystem(s) on device to store upgrade image.
 # Attempts these filesystems in this order, stopping at the first
@@ -25,12 +35,8 @@ dest_filesystem:
     - 'bootflash:'
     - 'flash:'
 
-# Remote path on device. '/' means root filesystem (no trailing slash
-# otherwise)
-dest_image_path: '/'
-
 # File transfer protocol
-# Tested with ftp and tftp. SCP currently not working.
+# Tested with sftp, ftp, tftp. Experimental support for http.
 transfer_proto: 'ftp'
 
 # File transfer source IP or hostname

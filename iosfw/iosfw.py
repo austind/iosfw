@@ -19,11 +19,6 @@ import yaml
 
 """ An API built upon NAPALM and Netmiko to manage Cisco IOS firmware. """
 
-# TODO: Fix SCP from iosfw
-# TODO: Handle exceptions in connection open/close
-# TODO: Refactor __init__() into methods
-# TODO: Ensure reachability to transfer_source
-
 
 class iosfw(object):
     def __init__(
@@ -53,7 +48,7 @@ class iosfw(object):
         file_level = getattr(logging, self.file_log_level.upper(), None)
         console_level = getattr(logging, self.console_log_level.upper(), None)
         self.log = logging.getLogger(__name__)
-        self.log.setLevel(logging.DEBUG)
+        self.log.setLevel(logging.INFO)
         if self.log_method == "tee" or self.log_method == "file":
             fmt_str = "%(asctime)s [%(levelname)s] %(message)s"
             formatter = logging.Formatter(fmt_str)
@@ -67,22 +62,31 @@ class iosfw(object):
             ch.setLevel(console_level)
             ch.setFormatter(formatter)
             self.log.addHandler(ch)
-        self.log.debug("Config file: {}".format(pprint.pprint(self.config_file)))
-        self.log.debug("Config parameters: {}".format(pprint.pprint(self.config)))
-        self.log.debug("Image file: {}".format(pprint.pprint(self.image_file)))
-        self.log.debug("Image info: {}".format(pprint.pprint(self.image_info)))
+        #self.log.debug("Config file:\n{}".format(pprint.pprint(self.config_file)))
+        #self.log.debug("Config parameters:\n{}".format(pprint.pprint(self.config)))
+        #self.log.debug("Image file:\n{}".format(pprint.pprint(self.image_file)))
+        #self.log.debug("Image info:\n{}".format(pprint.pprint(self.image_info)))
 
         # Set up connection
         if hostname is None:
             hostname = str(input("Hostname or IP: "))
         if username is None:
-            whoami = getpass.getuser()
-            username = str(input(f"Username [{whoami}]: ")) or whoami
+            if self.config['ctl_username']:
+                username = self.config['ctl_username']
+            else:
+                whoami = getpass.getuser()
+                username = str(input(f"Username [{whoami}]: ")) or whoami
         if password is None:
-            password = getpass.getpass()
+            if self.config['ctl_password']:
+                password = self.config['ctl_password']
+            else:
+                password = getpass.getpass()
         if optional_args is None:
             optional_args = {}
-            secret = getpass.getpass("Enable secret: ")
+            if self.config['ctl_secret']:
+                secret = self.config['ctl_secret']
+            else:
+                secret = getpass.getpass("Enable secret: ")
             optional_args.update({"secret": secret})
             if self.config["ctl_transport"]:
                 primary_transport = self.config["ctl_transport"][0]
@@ -102,7 +106,7 @@ class iosfw(object):
         self.napalm = self.napalm_driver(**self.napalm_args)
         self.log.info("===============================================")
         self.log.info(f"Opening connection to {hostname} via {primary_transport}...")
-        self.log.debug(pprint.pprint(self.napalm_args))
+        #self.log.debug(pprint.pprint(self.napalm_args))
         try:
             self.napalm.open()
         except (socket.timeout, SSHException, ConnectionRefusedError):
