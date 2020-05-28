@@ -868,7 +868,7 @@ class iosfw(object):
         # Validate inputs
         if reload_at is str and reload_in is str:
             raise ValueError("Use either reload_in or reload_at, not both")
-        if reload_at is not str and reload_in is not str:
+        if not isinstance(reload_at, str) and not isinstance(reload_in, str):
             reload_at = "00:00"
         if reload_range:
             try:
