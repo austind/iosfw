@@ -27,7 +27,7 @@ Auto-detects best upgrade method available:
 * `request platform software package install`
 * If those fail, plain `copy` followed by `set boot ...`
 
-Supported platforms:
+Fully supported platforms:
 * Catalyst 3550
 * Catalyst 3560
 * Catalyst 3560-X
@@ -38,13 +38,16 @@ Supported platforms:
 * Catalyst 3650
 * Catalyst 3850
 * ISR 2921
+* ISR 4331
 * C892FSP
 * ME3400
 
+Experimentally supported platforms:
+* ASR920
+
 Currently unsupported platforms:
-* Nexus 3k/9k
+* Nexus 3k/9k series
 * Catalyst 9k series
-* ISR 4300
 
 **NOTE: Use at your own risk.** It works well in my environment, but serious bugs are possible. Test thoroughly in a lab environment, and see known issues below.
 
@@ -62,11 +65,12 @@ Currently unsupported platforms:
 ```
 >>> from iosfw import iosfw
 >>> device = iosfw('ios-sw-1')
+>>> device.open()
 Username [austindcc]:
 Password:
 Enable secret:
 Opening connection to ios-sw-1...
-Connected to ios-sw-1 (WS-C3560X-48P) as adecoup via ssh
+Connected to ios-sw-1 (WS-C3560X-48P) as austind via ssh
 Running version: 12.2(55)SE8
 Upgrade version: 15.2(4)E8
 Upgrade status: NEEDS UPGRADE

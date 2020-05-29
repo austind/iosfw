@@ -19,11 +19,6 @@ import yaml
 
 """ An API built upon NAPALM and Netmiko to manage Cisco IOS firmware. """
 
-# TODO: Fix SCP from iosfw
-# TODO: Handle exceptions in connection open/close
-# TODO: Refactor __init__() into methods
-# TODO: Ensure reachability to transfer_source
-
 
 class iosfw(object):
     def __init__(
@@ -44,6 +39,7 @@ class iosfw(object):
         self.config = self._read_yaml_file(config_file)
         self.image_file = image_file
         self.image_info = self._read_yaml_file(image_file)
+        # TODO: Validate config inputs
 
         # Logging
         self.log_method = self.config["log_method"]
@@ -53,7 +49,7 @@ class iosfw(object):
         file_level = getattr(logging, self.file_log_level.upper(), None)
         console_level = getattr(logging, self.console_log_level.upper(), None)
         self.log = logging.getLogger(__name__)
-        self.log.setLevel(logging.DEBUG)
+        self.log.setLevel(logging.INFO)
         if self.log_method == "tee" or self.log_method == "file":
             fmt_str = "%(asctime)s [%(levelname)s] %(message)s"
             formatter = logging.Formatter(fmt_str)
@@ -67,41 +63,66 @@ class iosfw(object):
             ch.setLevel(console_level)
             ch.setFormatter(formatter)
             self.log.addHandler(ch)
-        self.log.debug("Config file: {}".format(pprint.pprint(self.config_file)))
-        self.log.debug("Config parameters: {}".format(pprint.pprint(self.config)))
-        self.log.debug("Image file: {}".format(pprint.pprint(self.image_file)))
-        self.log.debug("Image info: {}".format(pprint.pprint(self.image_info)))
+        # self.log.debug("Config file:\n{}".format(pprint.pprint(self.config_file)))
+        # self.log.debug("Config parameters:\n{}".format(pprint.pprint(self.config)))
+        # self.log.debug("Image file:\n{}".format(pprint.pprint(self.image_file)))
+        # self.log.debug("Image info:\n{}".format(pprint.pprint(self.image_info)))
 
+        self.hostname = hostname
+        self.username = username
+        self.password = password
+        self.optional_args = optional_args
+        self.driver = driver
+        self.timeout = timeout
+
+    def open(self):
         # Set up connection
-        if hostname is None:
+        if self.hostname is None:
             hostname = str(input("Hostname or IP: "))
-        if username is None:
-            whoami = getpass.getuser()
-            username = str(input(f"Username [{whoami}]: ")) or whoami
-        if password is None:
-            password = getpass.getpass()
-        if optional_args is None:
-            optional_args = {}
-            secret = getpass.getpass("Enable secret: ")
-            optional_args.update({"secret": secret})
+        if self.username is None:
+            if "ctl_username" in self.config and isinstance(
+                self.config["ctl_username"], str
+            ):
+                self.username = self.config["ctl_username"]
+            else:
+                whoami = getpass.getuser()
+                self.username = str(input(f"Username [{whoami}]: ")) or whoami
+        if self.password is None:
+            if "ctl_password" in self.config and isinstance(
+                self.config["ctl_password"], str
+            ):
+                self.password = self.config["ctl_password"]
+            else:
+                self.password = getpass.getpass()
+        if self.optional_args is None:
+            self.optional_args = {}
+            if "ctl_secret" in self.config and isinstance(
+                self.config["ctl_secret"], str
+            ):
+                secret = self.config["ctl_secret"]
+            else:
+                secret = getpass.getpass("Enable secret: ")
+            self.optional_args.update({"secret": secret})
             if self.config["ctl_transport"]:
                 primary_transport = self.config["ctl_transport"][0]
-                optional_args.update({"transport": primary_transport})
+                self.optional_args.update({"transport": primary_transport})
             if self.config["ssh_config_file"]:
-                optional_args.update(
+                self.optional_args.update(
                     {"ssh_config_file": self.config["ssh_config_file"]}
                 )
-        self.napalm_driver = napalm.get_network_driver(driver)
+        self.napalm_driver = napalm.get_network_driver(self.driver)
         self.napalm_args = {
-            "hostname": hostname,
-            "username": username,
-            "password": password,
-            "timeout": timeout,
-            "optional_args": optional_args,
+            "hostname": self.hostname,
+            "username": self.username,
+            "password": self.password,
+            "timeout": self.timeout,
+            "optional_args": self.optional_args,
         }
         self.napalm = self.napalm_driver(**self.napalm_args)
         self.log.info("===============================================")
-        self.log.info(f"Opening connection to {hostname} via {primary_transport}...")
+        self.log.info(
+            f"Opening connection to {self.hostname} via {primary_transport}..."
+        )
         self.log.debug(pprint.pprint(self.napalm_args))
         try:
             self.napalm.open()
@@ -143,6 +164,7 @@ class iosfw(object):
         self.upgrade_image_src_path = self._get_src_path(
             self.upgrade_image_name, local=True
         )
+        self.dest_filesystem = self._get_dest_fs()
         self.upgrade_image_dest_path = self._get_dest_path(self.upgrade_image_name)
         self.boot_image_path = self.get_boot_image()
         self.firmware_installed = self.check_firmware_installed()
@@ -226,24 +248,25 @@ class iosfw(object):
         else:
             img = image_src
         cmds = ["request", "software install", "archive download-sw", "copy"]
-        for cmd in cmds:
-            output = self.device.send_command(cmd + " ?")
-            if "Incomplete command" in output:
-                method = cmd
-                if (
-                    "allow-feature-upgrade" in output
-                    and not self.config["match_feature_set"]
-                ):
-                    flags += "/allow-feature-upgrade "
-                break
+        # ASR/ISRs run code that ostensibly support "request" method, but
+        # actually only support "copy" method.
+        if "ASR" in self.model or "ISR" in self.model:
+            method = "copy"
+        else:
+            for cmd in cmds:
+                output = self.device.send_command(cmd + " ?")
+                if "Incomplete command" in output:
+                    method = cmd
+                    if (
+                        "allow-feature-upgrade" in output
+                        and not self.config["match_feature_set"]
+                    ):
+                        flags += "/allow-feature-upgrade "
+                    break
         if method == "request":
-            if "ISR" in self.model:
-                target = "node"
-            else:
-                target = "switch all"
             return (
-                "request platform software package install {} "
-                "file {} new auto-copy".format(target, img)
+                f"request platform software package install switch all "
+                "file {img} new auto-copy"
             )
         if method == "software install":
             return f"software install file {img} new on-reboot"
@@ -288,6 +311,46 @@ class iosfw(object):
         else:
             return f"{proto}://{src}{path}{file_name}"
 
+    def _detect_dest_fs(self):
+        """ Returns filesystem of currently running image """
+        cmd = "show version"
+        output = self.device.send_command(cmd)
+        pattern = r"System\s+image\s+file\s+is\s+\"(\w+\:)"
+        match = re.search(pattern, output)
+        if match:
+            return match.group(1)
+        else:
+            return False
+
+    def _check_dest_fs(self, fs):
+        """ Checks if a destination filesystem exists """
+        if ":" not in fs:
+            fs = fs + ":"
+        cmd = f"dir {fs}"
+        output = self.device.send_command(cmd)
+        if "Directory of" in output:
+            return True
+        elif "Invalid input" in output:
+            return False
+        else:
+            raise ValueError(f"Unexpected output. Command: {cmd}\nOutput: {output}")
+
+    def _get_dest_fs(self):
+        """ Determines correct destination filesystem """
+        for fs in self.config["dest_filesystem"]:
+            if fs == "auto":
+                dest_fs = self._detect_dest_fs()
+                if dest_fs:
+                    return dest_fs
+                else:
+                    continue
+            else:
+                fs_exists = self._check_dest_fs(fs)
+                if fs_exists:
+                    return fs
+                else:
+                    continue
+
     def _get_dest_path(self, file_name=None, absolute=True):
         """ Returns full destination file path
             absolute (bool):
@@ -298,7 +361,7 @@ class iosfw(object):
             file_name = self.upgrade_image_name
         full_path = ""
         if absolute:
-            full_path += self.config["dest_filesystem"]
+            full_path += self.dest_filesystem
         full_path += "{}{}".format(self.config["dest_image_path"], file_name)
         return full_path
 
@@ -318,7 +381,7 @@ class iosfw(object):
 
     def _check_remote_file_exists(self, file_path):
         """ Checks if a file exists on the remote filesystem """
-        cmd = "dir {file_path}"
+        cmd = f"dir {file_path}"
         output = self.device.send_command(cmd)
         if "No such file" in output:
             return False
@@ -444,10 +507,9 @@ class iosfw(object):
                         f"Image file does not exist: {upgrade_image_path}"
                     )
                     return False
-        self.log.critical(
-            f"Could not find upgrade image for model {self.model} in image file {self.image_file}."
-        )
-        return False
+        msg = f"Could not find upgrade image for model {self.model} in image file {self.image_file}. Cannot continue."
+        self.log.critical(msg)
+        raise ValueError(msg)
 
     def _get_basename(self, file_path):
         """ Returns a file name from a file path
@@ -467,7 +529,7 @@ class iosfw(object):
 
     def _get_version_from_file(self, file_name, raw=False):
         """ Returns a version string from a file name """
-        pattern = r"(\d+\.\d+\.\d+)\.SPA"
+        pattern = r"(\d+\.\d+\.\w+)\.SPA"
         match = re.search(pattern, file_name)
         if match:
             if raw:
@@ -475,7 +537,7 @@ class iosfw(object):
             else:
                 return re.sub(r"\.0", ".", match.group(1))
 
-        pattern = r"(\d{3})-(\d+)\.(\w+)"
+        pattern = r"(\d+)-(\d+)\.(\w+)"
         match = re.search(pattern, file_name)
         if match:
             if raw:
@@ -497,6 +559,8 @@ class iosfw(object):
                 hours = int(reload_in.split(":")[0])
                 mins = int(reload_in.split(":")[1])
                 start_at = hours * 60 + mins
+            else:
+                start_at = int(reload_in)
             return random.choice(range(start_at, start_at + interval))
         else:
             return False
@@ -529,9 +593,12 @@ class iosfw(object):
         """ Returns the remote path of the image used on next reload """
         cmd = "show boot | include BOOT"
         output = self.device.send_command(cmd)
+        if "Ambiguous command" in output:
+            cmd = "show bootvar | include BOOT"
+            output = self.device.send_command(cmd)
         if "Invalid input" in output:
             self.log.debug(
-                "Device does not support `show boot`. Checking running config..."
+                "Device does not support `show boot` or `show bootvar`. Checking running config..."
             )
             cmd = "show run | i boot"
             output = self.device.send_command(cmd)
@@ -547,12 +614,15 @@ class iosfw(object):
                 )
                 return self.get_installed_images()[0]
         else:
-            return output.split(": ")[-1].strip()
+            pattern = r"^.*[=:]\s([^,\v]+)"
+            match = re.search(pattern, output)
+            if match:
+                return match.group(1)
 
     def get_installed_images(self):
         """ Returns list of images installed on dest_fs """
         results = []
-        dest_fs = self.config["dest_filesystem"]
+        dest_fs = self.dest_filesystem
         cmd = f"dir {dest_fs}"
         output = self.device.send_command_timing(cmd)
         for line in output.split("\n"):
@@ -561,7 +631,7 @@ class iosfw(object):
             # c3560-ipbasek9-mz.122-55.SE12
             # c2900-universalk9-mz.SPA.152-4.M4.bin
             # pattern = r'\w+-\w+-\w+.\d+-\w+\.\w+'
-            pattern = r"\d+-\w+\.\w+"
+            pattern = r"\d+-\d+\.\w+"
             match = re.search(pattern, file_name)
             if match:
                 results.append(f"{dest_fs}/{file_name}")
@@ -605,7 +675,7 @@ class iosfw(object):
 
     def restore_exec_timeout(self):
         """ Restores line vty exec-timeout """
-        if self.exec_timeout != " exec-timeout 0 0":
+        if self.exec_timeout:
             config_set = ["line vty 0 15", self.exec_timeout]
             self.log.info("Restoring line vty exec-timeout...")
             return self._send_write_config_set(config_set)
@@ -728,7 +798,7 @@ class iosfw(object):
     def check_firmware_installed(self):
         """ Checks if upgrade package is already installed """
         version = self.get_upgrade_version(raw=True)
-        dest_fs = self.config["dest_filesystem"]
+        dest_fs = self.dest_filesystem
         files = self.device.send_command(f"dir {dest_fs}")
         if "packages.conf" in self.boot_image_path:
             conf = self.device.send_command("more flash:packages.conf")
@@ -742,13 +812,15 @@ class iosfw(object):
             return False
 
     def check_reload_requested(self):
-        """ Checks if reload is requested in config """
-        if not isinstance(self.config["reload_in"], str) and not isinstance(
-            self.config["reload_at"], str
-        ):
-            return False
+        """ Check if reload params given in config """
+        if "reload_in" in self.config:
+            if self.config["reload_in"]:
+                return True
+        elif "reload_at" in self.config:
+            if self.config["reload_at"]:
+                return True
         else:
-            return True
+            return False
 
     def check_needs_reload(self):
         """ Check if running image does not equal boot image """
@@ -816,30 +888,37 @@ class iosfw(object):
         reload_at_pattern = r"^\d{2}:\d{2}$"
         reload_in_pattern = r"^\d{1,3}$|^\d{1,3}:\d{2}$"
 
+        # Load defaults
         if reload_at is None:
-            reload_at = self.config["reload_at"]
+            if "reload_at" in self.config:
+                reload_at = self.config["reload_at"]
         if reload_in is None:
-            reload_in = self.config["reload_in"]
+            if "reload_in" in self.config:
+                reload_in = self.config["reload_in"]
         if reload_range is None:
-            reload_range = self.config["reload_range"]
+            if "reload_range" in self.config:
+                reload_range = self.config["reload_range"]
 
         # Validate inputs
-        if isinstance(reload_at, str) and isinstance(reload_in, str):
-            raise ValueError("Use either reload_in or reload_at, not both")
-        if not isinstance(reload_at, str) and not isinstance(reload_in, str):
-            reload_at = "00:00"
+        if reload_in and reload_at:
+            raise ValueError("Use either reload_in or reload_at, not both.")
+        if reload_in is None and reload_at is None:
+            self.log.warning(
+                "Neither reload_in nor reload_at given. No reload scheduled."
+            )
+            return False
         if reload_range:
             try:
                 reload_range = int(reload_range)
             except ValueError:
                 raise ValueError(
-                    f"Option 'reload_range' must be an integer greater than 1 ({reload_range} given)"
+                    f"Option 'reload_range' must be an integer ({reload_range} given)"
                 )
-        if reload_at:
+        if reload_at is not None:
             reload_at = str(reload_at).strip()
             if re.match(reload_at_pattern, reload_at):
                 prep = "at"
-                if reload_range:
+                if reload_range and reload_range > 0:
                     reload_time = self._get_random_time(
                         reload_at=reload_at, interval=reload_range
                     )
@@ -850,11 +929,15 @@ class iosfw(object):
                     f"Option 'reload_at' must be 'hh:mm' or 'h:mm' ('{reload_at}' given)"
                 )
                 return False
-        if reload_in:
+        if reload_in is not None:
             reload_in = str(reload_in).strip()
             if re.match(reload_in_pattern, reload_in):
                 prep = "in"
-                if reload_range:
+                if reload_in == "0":
+                    # Scheduling reload for 1 minute ahead allows us to cleanly
+                    # terminate the control session
+                    reload_in = "1"
+                if reload_range and reload_range > 0:
                     reload_time = self._get_random_time(
                         reload_in=reload_in, interval=reload_range
                     )
@@ -947,7 +1030,7 @@ class iosfw(object):
         """
         if delete_path:
             path = self._get_path(file_name)
-            if path != self.config["dest_filesystem"]:
+            if path != self.dest_filesystem:
                 self.log.info(f"Removing {path}...")
                 return self._delete_file(path)
             else:
@@ -1007,7 +1090,7 @@ class iosfw(object):
                 "ssh_conn": self.device,
                 "source_file": src_file,
                 "dest_file": self._get_dest_path(dest_file, absolute=False),
-                "file_system": self.config["dest_filesystem"],
+                "file_system": self.dest_filesystem,
             }
             self.ft = FileTransfer(**ft_args)
         elif self.transport == "telnet":
@@ -1204,7 +1287,7 @@ class iosfw(object):
                 self.ensure_reload_scheduled()
             else:
                 self.log.info("Reload config not set. No reload scheduled.")
-        else:
+       else:
             self.log.info("No action needed.")
         end_t = datetime.now()
         self.log.info("Total time elapsed: {}".format(end_t - start_t))
