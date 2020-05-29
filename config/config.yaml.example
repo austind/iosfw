@@ -1,5 +1,5 @@
 # Control session credentials
-# Set to 'false' to prompt at runtime
+# Comment out to prompt at runtime
 ctl_username: 'admin'
 ctl_password: 'mypass'
 ctl_secret: 'mysecret'
@@ -129,7 +129,7 @@ match_feature_set: true
 #
 # reload_range: Time range (in minutes) across which to randomize reloads,
 #   beginning at the time specified in either reload_in or reload_at.
-#   Pass reload_range: 0 to schedule reload at exact time given (no range).
+#   Pass reload_range: 0 or comment out to schedule reload at exact time given.
 #
 # NOTE: reload_in and reload_at are mutually exclusive (set one or the other).
 #       If you specify both, you'll get an exception.
