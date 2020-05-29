@@ -1287,7 +1287,7 @@ class iosfw(object):
                 self.ensure_reload_scheduled()
             else:
                 self.log.info("Reload config not set. No reload scheduled.")
-       else:
+        else:
             self.log.info("No action needed.")
         end_t = datetime.now()
         self.log.info("Total time elapsed: {}".format(end_t - start_t))

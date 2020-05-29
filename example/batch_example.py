@@ -4,8 +4,8 @@ import iosfw
 import getpass
 
 hosts = ['switch1.example.com', 'switch2', 'switch3', 'switch4', '172.16.32.54']
-current_user = getpass.getuser()
-username = input("Username [{}]: ".format(current_user)) or current_user
+whoami = getpass.getuser()
+username = input("Username [{}]: ".format(whoami)) or whoami
 password = getpass.getpass()
 secret = getpass.getpass("Enable secret: ")
 
@@ -21,5 +21,6 @@ upgrade_args = {
 for host in hosts:
     upgrade_args['hostname'] = host
     device = iosfw.iosfw(**upgrade_args)
+    device.open()
     device.upgrade()
     device.close()

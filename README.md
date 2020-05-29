@@ -27,7 +27,7 @@ Auto-detects best upgrade method available:
 * `request platform software package install`
 * If those fail, plain `copy` followed by `set boot ...`
 
-Fully supported platforms:
+Supported platforms:
 * Catalyst 3550
 * Catalyst 3560
 * Catalyst 3560-X
@@ -115,11 +115,13 @@ See [`example/batch_example.py`](https://github.com/austind/iosfw/blob/master/ex
 * Accept a pre-existing `napalm` connection object
 * Verify reachability of `transfer_source`, attempting fix as needed
 * More consistent debug output
-* Break `__init__()` into separate methods, with more verbose feedback
-* ISR 4300 support
 * N3K/N9K support
 
 Contributions welcome.
+
+## Changelog
+
+See [CHANGELOG.md](https://github.com/austind/iosfw/blob/master/CHANGELOG.md)
 
 ## Notes
 
