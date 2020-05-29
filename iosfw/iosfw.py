@@ -123,7 +123,7 @@ class iosfw(object):
         self.log.info(
             f"Opening connection to {self.hostname} via {primary_transport}..."
         )
-        self.log.debug(pprint.pprint(self.napalm_args))
+        #self.log.debug(pprint.pprint(self.napalm_args))
         try:
             self.napalm.open()
         except (socket.timeout, SSHException, ConnectionRefusedError):
