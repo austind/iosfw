@@ -255,7 +255,7 @@ class iosfw(object):
         else:
             for cmd in cmds:
                 output = self.device.send_command(cmd + " ?")
-                if "Incomplete command" in output:
+                if "Unrecognized command" not in output:
                     method = cmd
                     if (
                         "allow-feature-upgrade" in output
