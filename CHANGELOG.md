@@ -1,3 +1,6 @@
+## 0.9.7
+* Bug fix: regression in get_upgrade_cmd()
+
 ## 0.9.6
 * New platform: ASR920 support
 * New platform: ISR 4331 support

@@ -123,7 +123,7 @@ class iosfw(object):
         self.log.info(
             f"Opening connection to {self.hostname} via {primary_transport}..."
         )
-        #self.log.debug(pprint.pprint(self.napalm_args))
+        # self.log.debug(pprint.pprint(self.napalm_args))
         try:
             self.napalm.open()
         except (socket.timeout, SSHException, ConnectionRefusedError):
@@ -866,7 +866,7 @@ class iosfw(object):
         reload_at=None,
         reload_in=None,
         reload_range=None,
-        save_modified_config=True,
+        save_modified_config=None,
     ):
         """ Schedules reload
             Overwrites pending reload, if already scheduled
@@ -889,15 +889,16 @@ class iosfw(object):
         reload_in_pattern = r"^\d{1,3}$|^\d{1,3}:\d{2}$"
 
         # Load defaults
-        if reload_at is None:
+        if reload_at is None and reload_in is None:
             if "reload_at" in self.config:
                 reload_at = self.config["reload_at"]
-        if reload_in is None:
             if "reload_in" in self.config:
                 reload_in = self.config["reload_in"]
         if reload_range is None:
             if "reload_range" in self.config:
                 reload_range = self.config["reload_range"]
+        if save_modified_config is None:
+            save_modified_config = True
 
         # Validate inputs
         if reload_in and reload_at:
@@ -999,12 +1000,23 @@ class iosfw(object):
             self.log.critical(msg)
             return False
 
-    def ensure_reload_scheduled(self):
+    def ensure_reload_scheduled(
+        self,
+        reload_at=None,
+        reload_in=None,
+        reload_range=None,
+        save_modified_config=None,
+    ):
         """ Schedules a reload, if not already scheduled. """
         scheduled = self.check_reload_scheduled()
         if not scheduled:
             self.log.info("Scheduling reload...")
-            scheduled = self.schedule_reload()
+            scheduled = self.schedule_reload(
+                reload_at=reload_at,
+                reload_in=reload_in,
+                reload_range=reload_range,
+                save_modified_config=save_modified_config,
+            )
         if scheduled:
             self.log.info(
                 "Reload scheduled for {} ({} away)".format(
@@ -1261,10 +1273,22 @@ class iosfw(object):
                 self.log.info("Removing running image...")
                 return self.delete_running_image()
 
-    def upgrade(self):
+    def upgrade(
+        self,
+        reload_in=None,
+        reload_at=None,
+        reload_range=None,
+        save_modified_config=None,
+    ):
         """ Performs firmware upgrade """
         start_t = datetime.now()
         start = start_t.strftime("%X %Y-%m-%d")
+        reload_args = {
+            "reload_in": reload_in,
+            "reload_at": reload_at,
+            "reload_range": reload_range,
+            "save_modified_config": save_modified_config,
+        }
         if self.needs_upgrade and not self.firmware_installed:
             self.log.info(f"Starting upgrade on {self.hostname} at {start}...")
             if self.config["disable_exec_timeout"]:
@@ -1273,7 +1297,7 @@ class iosfw(object):
                 self.refresh_upgrade_state()
                 self.ensure_old_image_removal()
                 self.ensure_running_image_removal()
-                self.ensure_reload_scheduled()
+                self.ensure_reload_scheduled(**reload_args)
                 status = "completed"
             else:
                 status = "failed"
@@ -1284,7 +1308,7 @@ class iosfw(object):
             self.log.info(f"Upgrade on {self.hostname} {status} at {end}")
         elif self.needs_reload and not self.reload_scheduled:
             if self.reload_requested:
-                self.ensure_reload_scheduled()
+                self.ensure_reload_scheduled(**reload_args)
             else:
                 self.log.info("Reload config not set. No reload scheduled.")
         else:
