@@ -166,7 +166,7 @@ class iosfw(object):
         )
         self.dest_filesystem = self._get_dest_fs()
         self.upgrade_image_dest_path = self._get_dest_path(self.upgrade_image_name)
-        self.boot_image_path = self.get_boot_image()
+        self.boot_image_path = self.get_first_boot_image()
         self.firmware_installed = self.check_firmware_installed()
         self.needs_upgrade = self.check_needs_upgrade()
         self.upgrade_cmd = self._get_upgrade_cmd()
@@ -211,7 +211,7 @@ class iosfw(object):
     def refresh_upgrade_state(self, log=False):
         """ Updates device status """
         self.running_image_path = self.get_running_image()
-        self.boot_image_path = self.get_boot_image()
+        self.boot_image_path = self.get_first_boot_image()
         self.firmware_installed = self.check_firmware_installed()
         self.needs_reload = self.check_needs_reload()
         self.reload_scheduled = self.check_reload_scheduled()
@@ -266,7 +266,7 @@ class iosfw(object):
         if method == "request":
             return (
                 f"request platform software package install switch all "
-                "file {img} new auto-copy"
+                f"file {img} new auto-copy"
             )
         if method == "software install":
             return f"software install file {img} new on-reboot"
@@ -589,12 +589,12 @@ class iosfw(object):
             self.log.critical(f"Could not find running image. Last output:\n{output}")
             return False
 
-    def get_boot_image(self):
-        """ Returns the remote path of the image used on next reload """
-        cmd = "show boot | include BOOT"
+    def get_all_boot_images(self):
+        """ Returns a list of all boot images """
+        cmd = "show boot"
         output = self.device.send_command(cmd)
         if "Ambiguous command" in output:
-            cmd = "show bootvar | include BOOT"
+            cmd = "show bootvar"
             output = self.device.send_command(cmd)
         if "Invalid input" in output:
             self.log.debug(
@@ -604,20 +604,24 @@ class iosfw(object):
             output = self.device.send_command(cmd)
             self.log.debug(f"Output from `{cmd}`: \n{output}")
             if "boot system" in output:
-                match = re.search(r"boot system ([^\n]+)\n", output)
+                match = re.findall(r"^boot\s+system\s+(\S+)$", output, re.M)
                 self.log.debug(f"Found boot image {match.group(1)}")
-                return match.group(1)
+                return match
             else:
                 self.log.debug(
                     "No `boot system` directives found in config. "
-                    "Inferring first image in dest_fs."
+                    "Inferring images found on dest_fs."
                 )
-                return self.get_installed_images()[0]
+                return self.get_installed_images()
         else:
-            pattern = r"^.*[=:]\s([^,\v]+)"
-            match = re.search(pattern, output)
+            pattern = r"^BOOT\s+(?:variable\s+=\s+|path-list\s+:\s+)(.*)$"
+            match = re.search(pattern, output, re.M)
             if match:
-                return match.group(1)
+                return match.group(1).split(',')
+
+    def get_first_boot_image(self):
+        """ Returns first configured boot image """
+        return self.get_all_boot_images()[0]
 
     def get_installed_images(self):
         """ Returns list of images installed on dest_fs """
@@ -707,11 +711,11 @@ class iosfw(object):
         if new_boot_image_path is None:
             new_boot_image_path = self.upgrade_image_dest_path
         self.log.info("Checking boot image...")
-        current_boot_image_path = self.get_boot_image()
+        current_boot_image_path = self.get_first_boot_image()
         if current_boot_image_path != new_boot_image_path:
             self.log.info(f"Setting boot image to {new_boot_image_path}...")
             if self.set_boot_image(new_boot_image_path):
-                confirm = self.get_boot_image()
+                confirm = self.get_first_boot_image()
                 if confirm == new_boot_image_path:
                     self.log.info(f"Success! New boot image set to {confirm}.")
                     return True

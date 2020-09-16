@@ -107,6 +107,7 @@ See [`example/batch_example.py`](https://github.com/austind/iosfw/blob/master/ex
     * Schedule reload: `reload at 00:00`
 * Currently, `iosfw` does not check to ensure `transfer_source` is reachable. If not reachable, the install command will fail, but not timeout for more than 30 minutes. Most commonly, `transfer_source` may not be reachable due to sending the requests out the incorrect interface. You can specify the source interface for TFTP and FTP transfers with `ip (ftp|tftp) source-interface <iface>` in config mode.
 * When using SSH proxy, `iosfw` throws a `ProcessLookupError` on exit. I have not found a way to catch or suppress this.
+* When `remove_old_images` is set to `always` on platforms using `request software...` install method, `iosfw` may incorrectly remove the newly installed image files. Net result is no change to system. Workaround: use `remove_old_images` = `as_needed`.
 
 ## Wishlist
 

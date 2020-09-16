@@ -1,5 +1,7 @@
 ## 0.9.7
-* Bug fix: regression in get_upgrade_cmd()
+* Bug fix: Regressions in get_upgrade_cmd()
+* New feature: Override default reload params from `config.yaml` when calling `upgrade()`
+* New feature: get_all_boot_images()
 
 ## 0.9.6
 * New platform: ASR920 support
