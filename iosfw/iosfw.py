@@ -247,7 +247,7 @@ class iosfw(object):
             img = image_dest
         else:
             img = image_src
-        cmds = ["request", "software install", "archive download-sw", "copy"]
+        cmds = ["install", "request", "software install", "archive download-sw", "copy"]
         # ASR/ISRs run code that ostensibly support "request" method, but
         # actually only support "copy" method.
         if "ASR" in self.model or "ISR" in self.model:
@@ -268,6 +268,8 @@ class iosfw(object):
                 f"request platform software package install switch all "
                 f"file {img} new auto-copy"
             )
+        if method == "install":
+            return f"install add file {img} activate commit"
         if method == "software install":
             return f"software install file {img} new on-reboot"
         if method == "archive download-sw":
@@ -1144,8 +1146,10 @@ class iosfw(object):
             )
             self.device.find_prompt()
 
-    def request_install(self):
+    def request_install(self, save_modified_config=None):
         """ Requests automated upgrade """
+        if save_modified_config is None:
+            save_modified_config = True
         cmd = self.upgrade_cmd
         self.log.info("Installing new firmware...")
         self.log.debug(f"Upgrade command: {cmd}")
@@ -1162,6 +1166,18 @@ class iosfw(object):
                 "cases, significantly longer."
             )
             output = self.device.send_command(cmd, delay_factor=100)
+
+            # Cat9k
+            if "System configuration has been modified" in output:
+                if save_modified_config:
+                    cmd = 'y'
+                else:
+                    cmd = 'n'
+                output = self.device.send_command(cmd, delay_factor=100)
+            if "This operation may require a reload" in output:
+                output = self.device.send_command('y', delay_factor=100)
+            # ... TODO
+
             self.log.debug(output)
             if "Error" in output:
                 self.log.critical("Install failed:")
@@ -1174,7 +1190,7 @@ class iosfw(object):
                 return True
             else:
                 self.log.critical(
-                    f"Unexpected output from request_install():\n{output}"
+                    f"Unexpected output:\n{output}"
                 )
                 return False
 

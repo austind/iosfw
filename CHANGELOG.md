@@ -2,6 +2,7 @@
 * Bug fix: Regressions in get_upgrade_cmd()
 * New feature: Override default reload params from `config.yaml` when calling `upgrade()`
 * New feature: get_all_boot_images()
+* New platform: Catalyst 9200
 
 ## 0.9.6
 * New platform: ASR920 support

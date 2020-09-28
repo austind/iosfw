@@ -49,8 +49,8 @@ c3750e-universalk9-tar.152-4.E8.tar:
     models:
         - WS-C3750X-12S
 
-cat3k_caa-universalk9.16.09.04.SPA.bin:
-    md5: bf139ef01e88f16bf9e54c7120830eab
+cat3k_caa-universalk9.16.09.05.SPA.bin:
+    md5: 559bda2a74c0a2a52b3aebd7341ff96b
     models:
         - WS-C3650-48FQ
         - WS-C3650-48PQ
@@ -75,6 +75,11 @@ asr920-universalk9_npe.16.09.05f.SPA.bin:
     md5: c131d3ec712a341431e8f07759f514e8
     models: 
         - ASR-920-12CZ-A
+
+cat9k_lite_iosxe.16.12.04.SPA.bin:
+    md5: 008101d12e11f1f5c8b8cf5627ff0c43
+    models:
+        - C9200-48P
 
 # Not yet supported
 nxos.7.0.3.I7.6.bin:
