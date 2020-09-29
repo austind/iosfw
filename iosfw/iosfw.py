@@ -207,6 +207,10 @@ class iosfw(object):
                 self.log.info("Upgrade status: COMPLETE")
         else:
             self.log.info("Upgrade status: NEEDS UPGRADE")
+            if self._is_cat9k() and not self.config['suppress_cat9k_warning']:
+                self.log.warning("******************* WARNING *******************")
+                self.log.warning("Cat9k has no option to delay reload after upgrade.")
+                self.log.warning(f"Calling upgrade() will reload {self.hostname} immedately after install.")
 
     def refresh_upgrade_state(self, log=False):
         """ Updates device status """
@@ -226,6 +230,10 @@ class iosfw(object):
             self.napalm.__del__()
         except OSError.ProcessLookupError:
             pass
+
+    def _is_cat9k(self):
+        """ Whether or not the device is a Catalyst 9k model """
+        return bool(re.match(r'^C9', self.model))
 
     def _swap_transport(self, transport):
         """ Attempts new connection using provided transport protocol """
@@ -269,7 +277,7 @@ class iosfw(object):
                 f"file {img} new auto-copy"
             )
         if method == "install":
-            return f"install add file {img} activate commit"
+            return f"install add file {img} activate commit prompt-level none"
         if method == "software install":
             return f"software install file {img} new on-reboot"
         if method == "archive download-sw":
@@ -1146,10 +1154,8 @@ class iosfw(object):
             )
             self.device.find_prompt()
 
-    def request_install(self, save_modified_config=None):
+    def request_install(self):
         """ Requests automated upgrade """
-        if save_modified_config is None:
-            save_modified_config = True
         cmd = self.upgrade_cmd
         self.log.info("Installing new firmware...")
         self.log.debug(f"Upgrade command: {cmd}")
@@ -1165,19 +1171,17 @@ class iosfw(object):
                 "Expect this to take about 10 minutes, and in some "
                 "cases, significantly longer."
             )
-            output = self.device.send_command(cmd, delay_factor=100)
 
-            # Cat9k
-            if "System configuration has been modified" in output:
-                if save_modified_config:
-                    cmd = 'y'
+            if self._is_cat9k():
+                # Cat9k only supports reload immediately after install
+                e = r'Finished\sCommit'
+                output = self.device.send_command(cmd, expect_string=e, delay_factor=100)
+                if output:
+                    return True
                 else:
-                    cmd = 'n'
-                output = self.device.send_command(cmd, delay_factor=100)
-            if "This operation may require a reload" in output:
-                output = self.device.send_command('y', delay_factor=100)
-            # ... TODO
+                    return False
 
+            output = self.device.send_command(cmd, delay_factor=100)
             self.log.debug(output)
             if "Error" in output:
                 self.log.critical("Install failed:")

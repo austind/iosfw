@@ -25,11 +25,10 @@ dest_image_path: '/'
 # Filesystem(s) on device to store upgrade image.
 # Attempts these filesystems in this order, stopping at the first
 # that exists on the target device.
-#
+
 # "auto" will attempt to detect the filesystem of the running image
 # and use that. When using "auto," specify a fallback in case
 # detection fails.
-#
 dest_filesystem:
     - 'auto'
     - 'bootflash:'
@@ -62,17 +61,15 @@ ssh_config_file: '~/.ssh/config'
 disable_exec_timeout: true
 
 # Output / Logging
-#
-# How to notify you of progress.
-# 
+ 
 # tee: write progress info both to console (stdout) and log_file
 # file: write progress info only to log_file
 # console: write progress info only to console (stdout)
 log_method: 'tee'
-#
+
 # File path for logging
 log_file: './log/iosfw.log'
-# 
+ 
 # Output verbosity level
 # Acceptable values, from most verbose to least verbose:
 #   - debug
@@ -82,6 +79,10 @@ log_file: './log/iosfw.log'
 #   - critical
 file_log_level: debug
 console_log_level: info
+
+# As of 2020-09-28, Catalyst 9k has no option to delay reload after image install.
+# Installing an image requires immediate reload, which iosfw will warn about by default.
+suppress_cat9k_warning: false
 
 # Whether or not to enforce a feature set match between the running image
 # and a prospective upgrade image.
