@@ -81,6 +81,11 @@ cat9k_lite_iosxe.16.12.04.SPA.bin:
     models:
         - C9200-48P
 
+cat9k_iosxe.16.12.04.SPA.bin:
+    md5: 16e8583ca6184c54f9d9fccf4574fa6e
+    models:
+        - C9300-48P
+
 # Not yet supported
 nxos.7.0.3.I7.6.bin:
     md5: aea740774c1ef22585ac40f1134d3ed6
