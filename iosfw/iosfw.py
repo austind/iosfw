@@ -426,9 +426,9 @@ class iosfw(object):
         """ Returns either install or bundle """
         cmd = "show version"
         output = self.device.send_command(cmd)
-        if "INSTALL" in output:
+        if "INSTALL" in output or 'packages.conf' in output:
             return "install"
-        if "BUNDLE" in output:
+        else:
             return "bundle"
 
     def _check_image_feature_set(self, file_name):
