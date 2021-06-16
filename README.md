@@ -96,6 +96,7 @@ See [`example/batch_example.py`](https://github.com/austind/iosfw/blob/master/ex
 
 ## Known issues
 
+* Only supports BUNDLE mode on cat9k. As of 2021-06-16, INSTALL mode reloads the device immediately, with no option to delay reload for image activation. This is not only inconvenient, but also complicates `iosfw`'s state awareness.
 * As of 0.9.0, SCP image transfer directly from `iosfw` no longer works. I recommend setting up an FTP server on a separate host and setting `config.yaml` accordingly.
 * Catalyst 3k series (3650 and 3850) with IOS running in BUNDLE mode (booted directly to the .bin file), will not succeed in upgrading with `request platform software package install`. Upgrading them requires a different manual process that is not yet implemented:
     * Remove existing IOS packages: `del /force flash:/cat*.pkg`
