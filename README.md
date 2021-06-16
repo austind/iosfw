@@ -44,10 +44,10 @@ Supported platforms:
 
 Experimentally supported platforms:
 * ASR920
+* Catalyst 9k series
 
 Currently unsupported platforms:
 * Nexus 3k/9k series
-* Catalyst 9k series
 
 **NOTE: Use at your own risk.** It works well in my environment, but serious bugs are possible. Test thoroughly in a lab environment, and see known issues below.
 
@@ -108,6 +108,7 @@ See [`example/batch_example.py`](https://github.com/austind/iosfw/blob/master/ex
 * Currently, `iosfw` does not check to ensure `transfer_source` is reachable. If not reachable, the install command will fail, but not timeout for more than 30 minutes. Most commonly, `transfer_source` may not be reachable due to sending the requests out the incorrect interface. You can specify the source interface for TFTP and FTP transfers with `ip (ftp|tftp) source-interface <iface>` in config mode.
 * When using SSH proxy, `iosfw` throws a `ProcessLookupError` on exit. I have not found a way to catch or suppress this.
 * When `remove_old_images` is set to `always` on platforms using `request software...` install method, `iosfw` may incorrectly remove the newly installed image files. Net result is no change to system. Workaround: use `remove_old_images` = `as_needed`.
+* Totally untested on stacks.
 
 ## Wishlist
 

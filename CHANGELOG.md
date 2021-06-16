@@ -1,3 +1,6 @@
+## 0.9.8
+* New platform: Catalyst 9k
+
 ## 0.9.7
 * Bug fix: Regressions in get_upgrade_cmd()
 * New feature: Override default reload params from `config.yaml` when calling `upgrade()`
