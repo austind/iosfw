@@ -77,20 +77,16 @@ asr920-universalk9_npe.16.09.05f.SPA.bin:
     models: 
         - ASR-920-12CZ-A
 
-cat9k_lite_iosxe.16.12.04.SPA.bin:
-    md5: 008101d12e11f1f5c8b8cf5627ff0c43
+cat9k_lite_iosxe.17.03.03.SPA.bin:
+    md5: 26a59146e871777a36dce7e01b87dc5c
     models:
         - C9200-48P
-
-cat9k_iosxe.16.12.04.SPA.bin:
-    md5: 16e8583ca6184c54f9d9fccf4574fa6e
-    models:
-        - C9300-48P
 
 cat9k_iosxe.17.03.03.SPA.bin:
     md5: 89c98b1ed44cf6cb1190eca977edb9a5
     models:
         - C9500-48Y4C
+        - C9300-48P
 
 # Not yet supported
 nxos.7.0.3.I7.6.bin:
