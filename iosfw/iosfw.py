@@ -207,10 +207,6 @@ class iosfw(object):
                 self.log.info("Upgrade status: COMPLETE")
         else:
             self.log.info("Upgrade status: NEEDS UPGRADE")
-            if self._is_cat9k() and not self.config['suppress_cat9k_warning']:
-                self.log.warning("******************* WARNING *******************")
-                self.log.warning("Cat9k has no option to delay reload after upgrade.")
-                self.log.warning(f"Calling upgrade() will reload {self.hostname} immedately after install.")
 
     def refresh_upgrade_state(self, log=False):
         """ Updates device status """
@@ -231,9 +227,13 @@ class iosfw(object):
         except OSError.ProcessLookupError:
             pass
 
+    def _is_asr_isr(self):
+        """ Whether or not the device is an ASR or ISR """
+        return "ASR" in self.model or "ISR" in self.model
+
     def _is_cat9k(self):
         """ Whether or not the device is a Catalyst 9k model """
-        return bool(re.match(r'^C9', self.model))
+        return bool(re.match(r"^C9", self.model))
 
     def _swap_transport(self, transport):
         """ Attempts new connection using provided transport protocol """
@@ -255,10 +255,12 @@ class iosfw(object):
             img = image_dest
         else:
             img = image_src
-        cmds = ["install", "request", "software install", "archive download-sw", "copy"]
-        # ASR/ISRs run code that ostensibly support "request" method, but
-        # actually only support "copy" method.
-        if "ASR" in self.model or "ISR" in self.model:
+        cmds = ["request", "software install", "archive download-sw", "copy"]
+        # ASR/ISRs run code that ostensibly support `request` method, but
+        # actually only support `copy` method.
+        # Cat9k supports `install`, but this method does not allow a delayed reload.
+        # For now, iosfw only supports BUNDLE mode on cat9k.
+        if self.is_asr_isr or self.is_cat9k:
             method = "copy"
         else:
             for cmd in cmds:
@@ -627,7 +629,7 @@ class iosfw(object):
             pattern = r"^BOOT\s+(?:variable\s+=\s+|path-list\s+:\s+)(.*)$"
             match = re.search(pattern, output, re.M)
             if match:
-                return match.group(1).split(',')
+                return match.group(1).split(",")
 
     def get_first_boot_image(self):
         """ Returns first configured boot image """
@@ -1172,15 +1174,6 @@ class iosfw(object):
                 "cases, significantly longer."
             )
 
-            if self._is_cat9k():
-                # Cat9k only supports reload immediately after install
-                e = r'Finished\sCommit'
-                output = self.device.send_command(cmd, expect_string=e, delay_factor=100)
-                if output:
-                    return True
-                else:
-                    return False
-
             output = self.device.send_command(cmd, delay_factor=100)
             self.log.debug(output)
             if "Error" in output:
@@ -1193,9 +1186,7 @@ class iosfw(object):
                 self.log.info("Install successful!")
                 return True
             else:
-                self.log.critical(
-                    f"Unexpected output:\n{output}"
-                )
+                self.log.critical(f"Unexpected output:\n{output}")
                 return False
 
     def ensure_install(self):

@@ -60,6 +60,7 @@ cat3k_caa-universalk9.16.09.05.SPA.bin:
         - WS-C3850-24P 
         - WS-C3850-24XS
         - WS-C3850-48P
+        - WS-C3850-12XS
         
 c2900-universalk9-mz.SPA.157-3.M4b.bin:
     md5: 15893d988e2999f5c96741c843492a1e
@@ -85,6 +86,11 @@ cat9k_iosxe.16.12.04.SPA.bin:
     md5: 16e8583ca6184c54f9d9fccf4574fa6e
     models:
         - C9300-48P
+
+cat9k_iosxe.17.03.03.SPA.bin:
+    md5: 89c98b1ed44cf6cb1190eca977edb9a5
+    models:
+        - C9500-48Y4C
 
 # Not yet supported
 nxos.7.0.3.I7.6.bin:

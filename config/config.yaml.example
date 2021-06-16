@@ -80,10 +80,6 @@ log_file: './log/iosfw.log'
 file_log_level: debug
 console_log_level: info
 
-# As of 2020-09-28, Catalyst 9k has no option to delay reload after image install.
-# Installing an image requires immediate reload, which iosfw will warn about by default.
-suppress_cat9k_warning: false
-
 # Whether or not to enforce a feature set match between the running image
 # and a prospective upgrade image.
 #
