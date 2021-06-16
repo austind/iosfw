@@ -144,6 +144,8 @@ class iosfw(object):
         self.facts = self.napalm.get_facts()  # NAPALM facts
         self.os_version = self.facts["os_version"]
         self.model = self.facts["model"]
+        self.is_cat9k = self._is_cat9k()
+        self.is_asr_isr = self._is_asr_isr()
         self.hostname = self.facts["hostname"]
         self.fqdn = self.facts["fqdn"]
         self.transport = self.napalm.transport  # ssh or telnet
@@ -158,6 +160,7 @@ class iosfw(object):
         self.running_image_feature_set = self._get_image_feature_set(
             self.running_image_name
         )
+        self.running_image_install_mode = self._get_image_install_mode()
         self.upgrade_image_name = self.get_upgrade_image_name()
         self.upgrade_version = self.get_upgrade_version()
         self.running_version = self.get_running_version()
@@ -418,6 +421,15 @@ class iosfw(object):
                 return False
         else:
             return False
+
+    def _get_image_install_mode(self):
+        """ Returns either install or bundle """
+        cmd = "show version"
+        output = self.device.send_command(cmd)
+        if "INSTALL" in output:
+            return "install"
+        if "BUNDLE" in output:
+            return "bundle"
 
     def _check_image_feature_set(self, file_name):
         """ Checks if a given image's feature set matches the running
@@ -846,6 +858,15 @@ class iosfw(object):
             else:
                 return False
         else:
+            # Since iosfw only supports BUNDLE mode for cat9k, devices currently running
+            # INSTALL mode image will show they need reload even if they are already
+            # on the current version. This statement works around that.
+            if (
+                self.running_version == self.upgrade_version
+                and self.running_image_install_mode == "install"
+                and self.running_image_path != self.boot_image_path
+            ):
+                return False
             if self.running_image_path != self.boot_image_path:
                 return True
             else:
